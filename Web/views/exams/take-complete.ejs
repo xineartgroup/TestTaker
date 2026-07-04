@@ -12,7 +12,7 @@
                 <h1>Exam Complete!</h1>
                 <p class="subtitle"><%= examName %> - Results Summary</p>
                 <div class="score-circle">
-                    <span class="score-number"><%= Math.round((results.correct / results.totalQuestions) * 100) || 0 %>%</span>
+                    <span class="score-number"><%= percentage %>%</span>
                     <span class="score-label">Score</span>
                 </div>
             </div>
@@ -29,14 +29,14 @@
                     <span class="summary-detail"><%= Math.round((results.answered / results.totalQuestions) * 100) || 0 %>%</span>
                 </div>
                 <div class="summary-item correct">
-                    <span class="summary-label">Correct</span>
+                    <span class="summary-label">Fully Correct</span>
                     <span class="summary-value"><%= results.correct %></span>
                     <span class="summary-detail"><%= Math.round((results.correct / results.totalQuestions) * 100) || 0 %>%</span>
                 </div>
-                <div class="summary-item incorrect">
-                    <span class="summary-label">Incorrect</span>
-                    <span class="summary-value"><%= results.incorrect %></span>
-                    <span class="summary-detail"><%= Math.round((results.incorrect / results.totalQuestions) * 100) || 0 %>%</span>
+                <div class="summary-item partial">
+                    <span class="summary-label">Points Earned</span>
+                    <span class="summary-value"><%= results.earnedPoints.toFixed(1) %></span>
+                    <span class="summary-detail"><%= percentage %>%</span>
                 </div>
             </div>
 
@@ -44,10 +44,10 @@
             <div class="progress-section">
                 <div class="progress-labels">
                     <span>Performance</span>
-                    <span><%= Math.round((results.correct / results.totalQuestions) * 100) || 0 %>%</span>
+                    <span><%= percentage %>%</span>
                 </div>
                 <!--<div class="progress-bar">
-                    <div class="progress-fill" style="width: <%= (results.correct / results.totalQuestions) * 100 || 0 %>%"></div>
+                    <div class="progress-fill" style="width: <%= percentage %>%"></div>
                 </div>-->
             </div>
             
@@ -59,12 +59,12 @@
                 </div>
                 <div class="results-list">
                     <% results.details.forEach((detail, index) => { %>
-                        <div class="result-item <%= detail.isCorrect ? 'correct' : (detail.isAnswered ? 'incorrect' : 'unanswered') %>">
+                        <div class="result-item <%= detail.pointsEarned >= detail.maxPoints ? 'correct' : (detail.isAnswered && detail.pointsEarned > 0 ? 'partial' : (detail.isAnswered ? 'incorrect' : 'unanswered')) %>">
                             <div class="result-number">
                                 <span class="question-number"><%= index + 1 %></span>
                                 <% if (detail.isAnswered) { %>
                                     <span class="status-icon">
-                                        <%= detail.isCorrect ? '✅' : '❌' %>
+                                        <%= detail.pointsEarned >= detail.maxPoints ? '✅' : (detail.pointsEarned > 0 ? '⚠️' : '❌') %>
                                     </span>
                                 <% } else { %>
                                     <span class="status-icon">⏳</span>
@@ -80,8 +80,11 @@
                                         <% } else if (detail.answerType === 2) { %>
                                             <span class="answer-value"><%= detail.userAnswerText || 'Not provided' %></span>
                                         <% } %>
-                                        <% if (detail.isCorrect === false && detail.answerType === 2) { %>
+                                        <% if (detail.answerType === 2) { %>
                                             <span class="pending-badge">⏳ Pending Review</span>
+                                        <% } %>
+                                        <% if (detail.answerType === 1 && detail.pointsEarned < detail.maxPoints && detail.pointsEarned > 0) { %>
+                                            <span class="partial-badge">Partial Credit: <%= Math.round((detail.pointsEarned / detail.maxPoints) * 100) %>%</span>
                                         <% } %>
                                     <% } else { %>
                                         <span class="answer-label">Not Answered</span>
@@ -91,6 +94,12 @@
                                     <div class="result-correct-answer">
                                         <span class="answer-label">Correct Answer:</span>
                                         <span class="answer-value correct"><%= detail.correctAnswer %></span>
+                                    </div>
+                                <% } %>
+                                <% if (detail.isAnswered) { %>
+                                    <div class="result-score">
+                                        <span class="answer-label">Points Earned:</span>
+                                        <span class="answer-value"><%= detail.pointsEarned.toFixed(1) %> / <%= detail.maxPoints %></span>
                                     </div>
                                 <% } %>
                             </div>
@@ -103,9 +112,6 @@
             <div class="results-actions">
                 <a href="/" class="btn btn-primary">
                     <span>🏠</span> Return to Home
-                </a>
-                <a href="/exams" class="btn btn-secondary">
-                    <span>📚</span> View All Exams
                 </a>
                 <a href="javascript:window.print()" class="btn btn-outline">
                     <span>🖨️</span> Print Results
@@ -255,8 +261,8 @@
             color: #27ae60;
         }
         
-        .summary-item.incorrect .summary-value {
-            color: #e74c3c;
+        .summary-item.partial .summary-value {
+            color: #f39c12;
         }
         
         /* Progress Bar */
@@ -362,14 +368,19 @@
             background: #f0faf4;
         }
         
+        .result-item.partial {
+            border-left-color: #f39c12;
+            background: #fef9e7;
+        }
+        
         .result-item.incorrect {
             border-left-color: #e74c3c;
             background: #fdf2f2;
         }
         
         .result-item.unanswered {
-            border-left-color: #f39c12;
-            background: #fef9f0;
+            border-left-color: #95a5a6;
+            background: #f8f9fa;
         }
         
         .result-number {
@@ -421,6 +432,16 @@
             border-top: 1px dashed #e9ecef;
         }
         
+        .result-score {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            font-size: 14px;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px dashed #e9ecef;
+        }
+        
         .answer-label {
             color: #6c757d;
             font-weight: 500;
@@ -440,6 +461,15 @@
         }
         
         .pending-badge {
+            background: #f39c12;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .partial-badge {
             background: #f39c12;
             color: white;
             padding: 2px 10px;

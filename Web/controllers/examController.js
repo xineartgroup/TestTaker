@@ -287,31 +287,28 @@ router.post('/take/:id/answer/:index', requireAuth, async (req, res) => {
         const exam = req.session.currentExam;
         const question = exam.questions[questionIndex];
         
-        // Save to session cache
         let answerText = null;
         let answerOptionId = null;
         
-        // AnswerType: 0 = Single Choice, 1 = Multiple Choice, 2 = Text Answer
-        if (question.AnswerType === 0) { // Single Choice
+        if (question.AnswerType === 0) {
             answerOptionId = parseInt(answer);
             exam.answers[question.Id] = answerOptionId;
-        } else if (question.AnswerType === 1) { // Multiple Choice
-            // For multiple choice, answer would be an array of option IDs
+        } else if (question.AnswerType === 1) {
+            let selectedOptions = [];
             if (Array.isArray(answer)) {
-                // Store as comma-separated string or JSON
-                exam.answers[question.Id] = answer.map(Number);
-                // For now, store the first one or handle differently
-                answerOptionId = answer.length > 0 ? parseInt(answer[0]) : null;
+                selectedOptions = answer.map(a => parseInt(a));
+            } else if (typeof answer === 'string' && answer.includes(',')) {
+                selectedOptions = answer.split(',').map(a => parseInt(a.trim()));
             } else {
-                answerOptionId = parseInt(answer);
-                exam.answers[question.Id] = [answerOptionId];
+                selectedOptions = [parseInt(answer)];
             }
-        } else if (question.AnswerType === 2) { // Text Answer
+            exam.answers[question.Id] = selectedOptions;
+            answerOptionId = selectedOptions.join(',');
+        } else if (question.AnswerType === 2) {
             answerText = answer;
             exam.answers[question.Id] = answer;
         }
         
-        // Save to Answers table via API
         const saveResult = await makeApiRequest('POST', '/api/answers/save', req, {
             examId: id,
             questionId: question.Id,
@@ -321,7 +318,6 @@ router.post('/take/:id/answer/:index', requireAuth, async (req, res) => {
         
         if (!saveResult.issuccess) {
             console.error('Failed to save answer to database:', saveResult.message);
-            // Still continue since we saved to session, but log the error
         }
         
         const nextIndex = questionIndex + 1;
@@ -365,41 +361,40 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
         
         const exam = req.session.currentExam;
         
-        // Get all answers from database for this exam
         const answersResult = await makeApiRequest('GET', `/api/answers?examId=${id}`, req);
         const dbAnswers = answersResult.issuccess ? answersResult.answers : [];
         
-        // Build answer map from database - store full answer objects
         const dbAnswerMap = {};
         dbAnswers.forEach(a => {
             dbAnswerMap[a.QuestionId] = {
                 answerOptionId: a.AnswerOptionId,
                 answerText: a.AnswerText,
-                isCorrect: a.IsCorrect,
                 pointsEarned: a.PointsEarned
             };
         });
         
-        // Session answers are just the answer values (e.g., 3 or "some text")
-        // Convert session answers to the same format
         const sessionAnswerMap = {};
         for (const [questionId, answerValue] of Object.entries(exam.answers)) {
-            // Check if this question already has a database answer
             if (!dbAnswerMap[questionId]) {
-                // Find the question to determine its type
                 const question = exam.questions.find(q => q.Id == questionId);
                 if (question) {
+                    let optionId = null;
+                    if (question.AnswerType === 0 || question.AnswerType === 1) {
+                        if (Array.isArray(answerValue)) {
+                            optionId = answerValue.join(',');
+                        } else {
+                            optionId = answerValue;
+                        }
+                    }
                     sessionAnswerMap[questionId] = {
-                        answerOptionId: question.AnswerType === 0 || question.AnswerType === 1 ? answerValue : null,
+                        answerOptionId: optionId,
                         answerText: question.AnswerType === 2 ? answerValue : null,
-                        isCorrect: false, // Will be evaluated below
                         pointsEarned: 0
                     };
                 }
             }
         }
         
-        // Merge: Database answers take precedence over session answers
         const allAnswers = { ...sessionAnswerMap, ...dbAnswerMap };
         
         const results = {
@@ -407,67 +402,143 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
             answered: 0,
             correct: 0,
             incorrect: 0,
+            totalPoints: 0,
+            earnedPoints: 0,
             details: []
         };
         
-        // Evaluate each question
         for (const question of exam.questions) {
             const userAnswerData = allAnswers[question.Id];
-            const userAnswer = userAnswerData?.answerOptionId || userAnswerData?.answerText || null;
-            
-            // Determine if answered
-            const isAnswered = userAnswer !== null && userAnswer !== undefined && userAnswer !== '';
-            if (isAnswered) {
-                results.answered++;
-            }
-            
-            // Determine if correct
+            let userAnswer = null;
             let isCorrect = false;
-            if (userAnswerData) {
-                // Use the stored isCorrect from database if available
-                if (userAnswerData.isCorrect !== undefined && userAnswerData.isCorrect !== null) {
-                    isCorrect = userAnswerData.isCorrect;
-                } else if (question.AnswerType === 0 || question.AnswerType === 1) {
-                    // Check if the selected option is correct
-                    if (userAnswerData.answerOptionId) {
-                        const optionResult = await makeApiRequest('GET', `/api/options/${userAnswerData.answerOptionId}`, req);
-                        if (optionResult.issuccess && optionResult.option) {
-                            isCorrect = optionResult.option.IsCorrect === true;
+            let isAnswered = false;
+            let pointsEarned = 0;
+            
+            if (question.AnswerType === 0) {
+                userAnswer = userAnswerData?.answerOptionId || null;
+                if (userAnswer) {
+                    userAnswer = parseInt(userAnswer);
+                }
+                isAnswered = userAnswer !== null && userAnswer !== undefined;
+                
+                if (isAnswered) {
+                    const optionResult = await makeApiRequest('GET', `/api/options/${userAnswer}`, req);
+                    if (optionResult.issuccess && optionResult.option) {
+                        isCorrect = optionResult.option.IsCorrect === true;
+                        pointsEarned = isCorrect ? 1 : 0;
+                    }
+                }
+                
+            } else if (question.AnswerType === 1) {
+                let userAnswers = [];
+                const answerValue = userAnswerData?.answerOptionId || userAnswerData?.answerText;
+                
+                if (answerValue) {
+                    if (Array.isArray(answerValue)) {
+                        userAnswers = answerValue.map(a => parseInt(a));
+                    } else if (typeof answerValue === 'string' && answerValue.includes(',')) {
+                        userAnswers = answerValue.split(',').map(a => parseInt(a.trim()));
+                    } else {
+                        userAnswers = [parseInt(answerValue)];
+                    }
+                    userAnswer = userAnswers;
+                    isAnswered = userAnswers.length > 0 && userAnswers[0] !== null && userAnswers[0] !== undefined;
+                }
+                
+                if (isAnswered) {
+                    const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
+                    
+                    if (optionsResult.issuccess) {
+                        const allOptions = optionsResult.options || [];
+                        const correctOptions = allOptions.filter(o => o.IsCorrect === true);
+                        const totalCorrect = correctOptions.length;
+                        
+                        if (totalCorrect > 0) {
+                            let correctSelections = 0;
+                            let incorrectSelections = 0;
+                            
+                            userAnswers.forEach(answerId => {
+                                const option = allOptions.find(o => o.Id === answerId);
+                                if (option) {
+                                    if (option.IsCorrect) {
+                                        correctSelections++;
+                                    } else {
+                                        incorrectSelections++;
+                                    }
+                                }
+                            });
+                            
+                            const weightPerCorrect = 1 / totalCorrect;
+                            let calculatedPoints = (correctSelections * weightPerCorrect) - (incorrectSelections * weightPerCorrect);
+                            pointsEarned = Math.max(0, calculatedPoints);
+                            isCorrect = correctSelections === totalCorrect && incorrectSelections === 0;
+                            
+                            const userAnswerTexts = userAnswers.map(id => {
+                                const option = allOptions.find(o => o.Id === id);
+                                return option ? option.Text : `Option ${id}`;
+                            });
+                            
+                            userAnswerData.userAnswerTexts = userAnswerTexts;
                         }
                     }
                 }
-                // Text answers (AnswerType === 2) default to false
+                
+            } else if (question.AnswerType === 2) {
+                userAnswer = userAnswerData?.answerText || null;
+                isAnswered = userAnswer !== null && userAnswer !== undefined && userAnswer !== '';
+                
+                if (isAnswered) {
+                    isCorrect = false;
+                    pointsEarned = 0;
+                }
             }
             
+            if (isAnswered) {
+                results.answered++;
+            }
             if (isCorrect) {
                 results.correct++;
-            } else if (isAnswered) {
+            } else if (isAnswered && question.AnswerType !== 2) {
                 results.incorrect++;
             }
             
-            // Get the actual answer text for display
+            results.totalPoints += 1;
+            results.earnedPoints += pointsEarned;
+            
             let userAnswerText = null;
-            if (question.AnswerType === 0 || question.AnswerType === 1) { // Multiple choice
-                if (userAnswerData?.answerOptionId) {
-                    const optionResult = await makeApiRequest('GET', `/api/options/${userAnswerData.answerOptionId}`, req);
-                    if (optionResult.issuccess && optionResult.option) {
-                        userAnswerText = optionResult.option.Text;
+            if (question.AnswerType === 0 || question.AnswerType === 1) {
+                if (userAnswer) {
+                    if (question.AnswerType === 1 && Array.isArray(userAnswer)) {
+                        const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
+                        if (optionsResult.issuccess) {
+                            const texts = userAnswer.map(id => {
+                                const option = optionsResult.options.find(o => o.Id === id);
+                                return option ? option.Text : `Option ${id}`;
+                            });
+                            userAnswerText = texts.join(', ');
+                        } else {
+                            userAnswerText = userAnswer.map(a => `Option ${a}`).join(', ');
+                        }
                     } else {
-                        userAnswerText = `Option ${userAnswerData.answerOptionId}`;
+                        const optionResult = await makeApiRequest('GET', `/api/options/${userAnswer}`, req);
+                        if (optionResult.issuccess && optionResult.option) {
+                            userAnswerText = optionResult.option.Text;
+                        } else {
+                            userAnswerText = `Option ${userAnswer}`;
+                        }
                     }
                 }
-            } else if (question.AnswerType === 2) { // Text
-                userAnswerText = userAnswerData?.answerText || null;
+            } else if (question.AnswerType === 2) {
+                userAnswerText = userAnswer || null;
             }
             
-            // Get correct answer for display
             let correctAnswerText = null;
             if (question.AnswerType === 0 || question.AnswerType === 1) {
                 const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
                 if (optionsResult.issuccess) {
-                    const correctOption = optionsResult.options.find(o => o.IsCorrect === true);
-                    if (correctOption) {
-                        correctAnswerText = correctOption.Text;
+                    const correctOptions = optionsResult.options.filter(o => o.IsCorrect === true);
+                    if (correctOptions.length > 0) {
+                        correctAnswerText = correctOptions.map(o => o.Text).join(', ');
                     }
                 }
             } else if (question.AnswerType === 2) {
@@ -482,17 +553,24 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
                 isCorrect: isCorrect,
                 isAnswered: isAnswered,
                 answerType: question.AnswerType,
-                correctAnswer: correctAnswerText
+                correctAnswer: correctAnswerText,
+                pointsEarned: pointsEarned,
+                maxPoints: 1
             });
         }
         
         const examName = exam.examName;
+        const percentage = results.totalPoints > 0 
+            ? Math.round((results.earnedPoints / results.totalPoints) * 100) 
+            : 0;
+        
         delete req.session.currentExam;
         
         return res.render('exams/take-complete', {
             title: 'Exam Complete',
             results: results,
-            examName: examName
+            examName: examName,
+            percentage: percentage
         });
         
     } catch (error) {

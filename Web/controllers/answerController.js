@@ -104,10 +104,9 @@ router.get('/grade/:id', requireAuth, async (req, res) => {
 router.post('/grade/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { isCorrect, pointsEarned } = req.body;
+        const { pointsEarned } = req.body;
         
         const result = await makeApiRequest('POST', `/api/answers/grade/${id}`, req, {
-            isCorrect: isCorrect === 'true' || isCorrect === true,
             pointsEarned: parseFloat(pointsEarned) || 0
         });
         

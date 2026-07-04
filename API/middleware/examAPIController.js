@@ -393,7 +393,6 @@ router.post('/take/:id/answer/:index', authenticateToken, async (req, res) => {
 
 router.get('/take/:id/complete', authenticateToken, async (req, res) => {
     try {
-        // Express-session backup just to check session health if decoupled
         if (!req.session || !req.session.isLoggedIn) {
             return res.status(401).send('Session expired or invalid.');
         }
@@ -402,96 +401,145 @@ router.get('/take/:id/complete', authenticateToken, async (req, res) => {
         
         const { id } = req.params;
         
-        // Match user ID from token against the active session details
         if (!req.session.currentExam || 
             req.session.currentExam.examId != id ||
             req.session.currentExam.userId != req.user.id) {
             return res.status(400).send('Exam context mismatch or not found.');
         }
         
-        const resultsAccess = checkExamResultsAccess(req.user, id, req.user.id);
-        if (!resultsAccess.issuccess) {
-            return res.status(403).render('error', { 
-                title: 'Access Denied', 
-                detail: resultsAccess.message 
-            });
-        }
-        
         const exam = req.session.currentExam;
         const results = {
             totalQuestions: exam.questions.length,
-            answered: Object.keys(exam.answers).length,
+            answered: 0,
             correct: 0,
             incorrect: 0,
+            totalPoints: exam.questions.length,
+            earnedPoints: 0,
             details: []
         };
 
         for (const question of exam.questions) {
             const userAnswer = exam.answers[String(question.Id)];
-            console.log(`Evaluating Question ID: ${question.Id}, User Answer:`, userAnswer);
+            let isAnswered = false;
+            let pointsEarned = 0;
+            let maxPoints = 1;
+            let userAnswerDisplay = null;
             
             if (question.AnswerType === 0) {
-                if (userAnswer) {
+                isAnswered = userAnswer !== null && userAnswer !== undefined;
+                if (isAnswered) {
                     const optionResult = await makeApiRequest('GET', `/api/options/${userAnswer}`, req);
-                    
                     if (optionResult.issuccess && optionResult.option) {
                         const isCorrect = optionResult.option.IsCorrect;
-                        if (isCorrect) results.correct++;
-                        else results.incorrect++;
-
-                        results.details.push({
-                            questionId: question.Id,
-                            text: question.Text,
-                            userAnswer: userAnswer,
-                            isCorrect: isCorrect
-                        });
+                        pointsEarned = isCorrect ? 1 : 0;
+                        userAnswerDisplay = optionResult.option.Text || `Option ${userAnswer}`;
                     } else {
-                        results.details.push({ questionId: question.Id, text: question.Text, userAnswer: userAnswer, isCorrect: false });
+                        userAnswerDisplay = `Option ${userAnswer}`;
                     }
-                } else {
-                    results.details.push({ questionId: question.Id, text: question.Text, userAnswer: null, isCorrect: false });
                 }
+                
+                if (pointsEarned === maxPoints) results.correct++;
+                else if (isAnswered) results.incorrect++;
+                
             } else if (question.AnswerType === 1) {
-                if (userAnswer && Array.isArray(userAnswer) && userAnswer.length > 0) {
-                    const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
-                    const correctOptions = optionsResult.issuccess ? 
-                        optionsResult.options.filter(opt => opt.IsCorrect).map(opt => opt.Id) : [];
-                    
-                    const userSelected = userAnswer.map(Number);
-                    const userSet = new Set(userSelected);
-                    const correctSet = new Set(correctOptions);
-                    
-                    const hasAllCorrect = correctOptions.every(id => userSet.has(id));
-                    const hasNoIncorrect = userSelected.every(id => correctSet.has(id));
-                    const allCorrect = hasAllCorrect && hasNoIncorrect && userSelected.length === correctOptions.length;
-                    
-                    if (allCorrect) results.correct++;
-                    else results.incorrect++;
-                    
-                    results.details.push({
-                        questionId: question.Id,
-                        text: question.Text,
-                        userAnswer: userAnswer,
-                        isCorrect: allCorrect,
-                        correctOptions: correctOptions,
-                        userSelected: userSelected
-                    });
-                } else {
-                    results.details.push({ questionId: question.Id, text: question.Text, userAnswer: null, isCorrect: false });
+                let userAnswers = [];
+                if (Array.isArray(userAnswer)) {
+                    userAnswers = userAnswer.map(Number);
+                } else if (userAnswer) {
+                    userAnswers = [Number(userAnswer)];
                 }
-            } else {
-                results.details.push({ questionId: question.Id, text: question.Text, userAnswer: userAnswer || null, isCorrect: true });
+                
+                isAnswered = userAnswers.length > 0 && userAnswers[0] !== null && userAnswers[0] !== undefined;
+                
+                if (isAnswered) {
+                    const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
+                    
+                    if (optionsResult.issuccess) {
+                        const allOptions = optionsResult.options || [];
+                        const correctOptions = allOptions.filter(o => o.IsCorrect === true);
+                        const totalCorrect = correctOptions.length;
+                        
+                        if (totalCorrect > 0) {
+                            let correctSelections = 0;
+                            let incorrectSelections = 0;
+                            
+                            userAnswers.forEach(answerId => {
+                                const option = allOptions.find(o => o.Id === answerId);
+                                if (option) {
+                                    if (option.IsCorrect) {
+                                        correctSelections++;
+                                    } else {
+                                        incorrectSelections++;
+                                    }
+                                }
+                            });
+                            
+                            const weightPerCorrect = 1 / totalCorrect;
+                            let calculatedPoints = (correctSelections * weightPerCorrect) - (incorrectSelections * weightPerCorrect);
+                            pointsEarned = Math.max(0, calculatedPoints);
+                            
+                            if (pointsEarned === maxPoints) results.correct++;
+                            else if (isAnswered) results.incorrect++;
+                            
+                            const userAnswerTexts = userAnswers.map(id => {
+                                const option = allOptions.find(o => o.Id === id);
+                                return option ? option.Text : `Option ${id}`;
+                            });
+                            userAnswerDisplay = userAnswerTexts.join(', ');
+                        }
+                    }
+                }
+                
+            } else if (question.AnswerType === 2) {
+                isAnswered = userAnswer !== null && userAnswer !== undefined && userAnswer !== '';
+                userAnswerDisplay = userAnswer || null;
+                pointsEarned = 0;
             }
+            
+            if (isAnswered) {
+                results.answered++;
+            }
+            
+            results.earnedPoints += pointsEarned;
+            
+            let correctAnswerText = null;
+            if (question.AnswerType === 0 || question.AnswerType === 1) {
+                const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
+                if (optionsResult.issuccess) {
+                    const correctOptions = optionsResult.options.filter(o => o.IsCorrect === true);
+                    if (correctOptions.length > 0) {
+                        correctAnswerText = correctOptions.map(o => o.Text).join(', ');
+                    }
+                }
+            } else if (question.AnswerType === 2) {
+                correctAnswerText = 'Manual review required';
+            }
+            
+            results.details.push({
+                questionId: question.Id,
+                text: question.Text,
+                userAnswer: userAnswer,
+                userAnswerText: userAnswerDisplay,
+                isAnswered: isAnswered,
+                answerType: question.AnswerType,
+                correctAnswer: correctAnswerText,
+                pointsEarned: pointsEarned,
+                maxPoints: maxPoints
+            });
         }
         
         const examName = exam.examName;
+        const percentage = results.totalPoints > 0 
+            ? Math.round((results.earnedPoints / results.totalPoints) * 100) 
+            : 0;
+        
         delete req.session.currentExam;
         
-        // Render and stream the HTML back across our authenticated channel
         return res.render('exams/take-complete', {
             title: 'Exam Complete',
             results: results,
-            examName: examName
+            examName: examName,
+            percentage: percentage
         });
         
     } catch (error) {
