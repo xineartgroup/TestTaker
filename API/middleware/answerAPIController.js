@@ -108,6 +108,7 @@ router.post("/save", authenticateToken, async (req, res) => {
         let pointsEarned = 0;
         
         if (answerType === 0) {
+            // Single choice - calculate points immediately
             if (answerOptionId) {
                 const optionResult = await pool.request()
                     .input('optionId', answerOptionId)
@@ -119,17 +120,51 @@ router.post("/save", authenticateToken, async (req, res) => {
                 }
             }
         } else if (answerType === 1) {
+            // Multiple choice - calculate partial points immediately
             if (answerOptionId) {
-                const optionResult = await pool.request()
-                    .input('optionId', answerOptionId)
-                    .query("SELECT IsCorrect FROM Options WHERE Id = @optionId");
+                // Parse the comma-separated string
+                let userAnswers = [];
+                if (typeof answerOptionId === 'string' && answerOptionId.includes(',')) {
+                    userAnswers = answerOptionId.split(',').map(a => parseInt(a.trim()));
+                } else if (Array.isArray(answerOptionId)) {
+                    userAnswers = answerOptionId;
+                } else {
+                    userAnswers = [parseInt(answerOptionId)];
+                }
                 
-                if (optionResult.recordset && optionResult.recordset.length > 0) {
-                    const isCorrect = optionResult.recordset[0].IsCorrect ? 1 : 0;
-                    pointsEarned = isCorrect === 1 ? 1 : 0;
+                // Get all options for this question
+                const optionsResult = await pool.request()
+                    .input('questionId', questionId)
+                    .query("SELECT Id, IsCorrect FROM Options WHERE QuestionId = @questionId");
+                
+                if (optionsResult.recordset && optionsResult.recordset.length > 0) {
+                    const allOptions = optionsResult.recordset;
+                    const correctOptions = allOptions.filter(o => o.IsCorrect === true);
+                    const totalCorrect = correctOptions.length;
+                    
+                    if (totalCorrect > 0) {
+                        let correctSelections = 0;
+                        let incorrectSelections = 0;
+                        
+                        userAnswers.forEach(answerId => {
+                            const option = allOptions.find(o => o.Id === answerId);
+                            if (option) {
+                                if (option.IsCorrect) {
+                                    correctSelections++;
+                                } else {
+                                    incorrectSelections++;
+                                }
+                            }
+                        });
+                        
+                        const weightPerCorrect = 1 / totalCorrect;
+                        let calculatedPoints = (correctSelections * weightPerCorrect) - (incorrectSelections * weightPerCorrect);
+                        pointsEarned = Math.max(0, calculatedPoints);
+                    }
                 }
             }
         } else if (answerType === 2) {
+            // Text answer - needs manual grading
             pointsEarned = 0;
         }
         
@@ -157,7 +192,7 @@ router.post("/save", authenticateToken, async (req, res) => {
                     WHERE Id = @id
                 `);
             
-            console.log(`Updated answer ID: ${answerId}`);
+            console.log(`Updated answer ID: ${answerId} with points: ${pointsEarned}`);
         } else {
             await pool.request()
                 .input('examId', examId)
@@ -171,7 +206,7 @@ router.post("/save", authenticateToken, async (req, res) => {
                     VALUES (@examId, @userId, @questionId, @answerText, @answerOptionId, @pointsEarned, GETDATE())
                 `);
             
-            console.log(`Inserted answer for question ${questionId}`);
+            console.log(`Inserted answer for question ${questionId} with points: ${pointsEarned}`);
         }
         
         return res.json({ 

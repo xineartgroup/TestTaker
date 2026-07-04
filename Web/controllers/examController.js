@@ -361,9 +361,11 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
         
         const exam = req.session.currentExam;
         
+        // Get all answers from database with their calculated points
         const answersResult = await makeApiRequest('GET', `/api/answers?examId=${id}`, req);
         const dbAnswers = answersResult.issuccess ? answersResult.answers : [];
         
+        // Build answer map from database
         const dbAnswerMap = {};
         dbAnswers.forEach(a => {
             dbAnswerMap[a.QuestionId] = {
@@ -372,30 +374,6 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
                 pointsEarned: a.PointsEarned
             };
         });
-        
-        const sessionAnswerMap = {};
-        for (const [questionId, answerValue] of Object.entries(exam.answers)) {
-            if (!dbAnswerMap[questionId]) {
-                const question = exam.questions.find(q => q.Id == questionId);
-                if (question) {
-                    let optionId = null;
-                    if (question.AnswerType === 0 || question.AnswerType === 1) {
-                        if (Array.isArray(answerValue)) {
-                            optionId = answerValue.join(',');
-                        } else {
-                            optionId = answerValue;
-                        }
-                    }
-                    sessionAnswerMap[questionId] = {
-                        answerOptionId: optionId,
-                        answerText: question.AnswerType === 2 ? answerValue : null,
-                        pointsEarned: 0
-                    };
-                }
-            }
-        }
-        
-        const allAnswers = { ...sessionAnswerMap, ...dbAnswerMap };
         
         const results = {
             totalQuestions: exam.questions.length,
@@ -408,118 +386,44 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
         };
         
         for (const question of exam.questions) {
-            const userAnswerData = allAnswers[question.Id];
-            let userAnswer = null;
-            let isCorrect = false;
-            let isAnswered = false;
-            let pointsEarned = 0;
-            
-            if (question.AnswerType === 0) {
-                userAnswer = userAnswerData?.answerOptionId || null;
-                if (userAnswer) {
-                    userAnswer = parseInt(userAnswer);
-                }
-                isAnswered = userAnswer !== null && userAnswer !== undefined;
-                
-                if (isAnswered) {
-                    const optionResult = await makeApiRequest('GET', `/api/options/${userAnswer}`, req);
-                    if (optionResult.issuccess && optionResult.option) {
-                        isCorrect = optionResult.option.IsCorrect === true;
-                        pointsEarned = isCorrect ? 1 : 0;
-                    }
-                }
-                
-            } else if (question.AnswerType === 1) {
-                let userAnswers = [];
-                const answerValue = userAnswerData?.answerOptionId || userAnswerData?.answerText;
-                
-                if (answerValue) {
-                    if (Array.isArray(answerValue)) {
-                        userAnswers = answerValue.map(a => parseInt(a));
-                    } else if (typeof answerValue === 'string' && answerValue.includes(',')) {
-                        userAnswers = answerValue.split(',').map(a => parseInt(a.trim()));
-                    } else {
-                        userAnswers = [parseInt(answerValue)];
-                    }
-                    userAnswer = userAnswers;
-                    isAnswered = userAnswers.length > 0 && userAnswers[0] !== null && userAnswers[0] !== undefined;
-                }
-                
-                if (isAnswered) {
-                    const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
-                    
-                    if (optionsResult.issuccess) {
-                        const allOptions = optionsResult.options || [];
-                        const correctOptions = allOptions.filter(o => o.IsCorrect === true);
-                        const totalCorrect = correctOptions.length;
-                        
-                        if (totalCorrect > 0) {
-                            let correctSelections = 0;
-                            let incorrectSelections = 0;
-                            
-                            userAnswers.forEach(answerId => {
-                                const option = allOptions.find(o => o.Id === answerId);
-                                if (option) {
-                                    if (option.IsCorrect) {
-                                        correctSelections++;
-                                    } else {
-                                        incorrectSelections++;
-                                    }
-                                }
-                            });
-                            
-                            const weightPerCorrect = 1 / totalCorrect;
-                            let calculatedPoints = (correctSelections * weightPerCorrect) - (incorrectSelections * weightPerCorrect);
-                            pointsEarned = Math.max(0, calculatedPoints);
-                            isCorrect = correctSelections === totalCorrect && incorrectSelections === 0;
-                            
-                            const userAnswerTexts = userAnswers.map(id => {
-                                const option = allOptions.find(o => o.Id === id);
-                                return option ? option.Text : `Option ${id}`;
-                            });
-                            
-                            userAnswerData.userAnswerTexts = userAnswerTexts;
-                        }
-                    }
-                }
-                
-            } else if (question.AnswerType === 2) {
-                userAnswer = userAnswerData?.answerText || null;
-                isAnswered = userAnswer !== null && userAnswer !== undefined && userAnswer !== '';
-                
-                if (isAnswered) {
-                    isCorrect = false;
-                    pointsEarned = 0;
-                }
-            }
+            const userAnswerData = dbAnswerMap[question.Id];
+            const pointsEarned = userAnswerData?.pointsEarned || 0;
+            const isAnswered = userAnswerData !== undefined;
             
             if (isAnswered) {
                 results.answered++;
-            }
-            if (isCorrect) {
-                results.correct++;
-            } else if (isAnswered && question.AnswerType !== 2) {
-                results.incorrect++;
+                if (pointsEarned >= 1) {
+                    results.correct++;
+                } else {
+                    results.incorrect++;
+                }
             }
             
             results.totalPoints += 1;
             results.earnedPoints += pointsEarned;
             
+            // Get user answer text for display
             let userAnswerText = null;
+            let userAnswer = null;
+            
             if (question.AnswerType === 0 || question.AnswerType === 1) {
-                if (userAnswer) {
-                    if (question.AnswerType === 1 && Array.isArray(userAnswer)) {
+                const answerValue = userAnswerData?.answerOptionId || null;
+                if (answerValue) {
+                    if (question.AnswerType === 1 && typeof answerValue === 'string' && answerValue.includes(',')) {
+                        const optionIds = answerValue.split(',').map(a => parseInt(a.trim()));
+                        userAnswer = optionIds;
                         const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
                         if (optionsResult.issuccess) {
-                            const texts = userAnswer.map(id => {
+                            const texts = optionIds.map(id => {
                                 const option = optionsResult.options.find(o => o.Id === id);
                                 return option ? option.Text : `Option ${id}`;
                             });
                             userAnswerText = texts.join(', ');
                         } else {
-                            userAnswerText = userAnswer.map(a => `Option ${a}`).join(', ');
+                            userAnswerText = optionIds.map(a => `Option ${a}`).join(', ');
                         }
                     } else {
+                        userAnswer = parseInt(answerValue);
                         const optionResult = await makeApiRequest('GET', `/api/options/${userAnswer}`, req);
                         if (optionResult.issuccess && optionResult.option) {
                             userAnswerText = optionResult.option.Text;
@@ -529,9 +433,11 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
                     }
                 }
             } else if (question.AnswerType === 2) {
-                userAnswerText = userAnswer || null;
+                userAnswer = userAnswerData?.answerText || null;
+                userAnswerText = userAnswer;
             }
             
+            // Get correct answer for display
             let correctAnswerText = null;
             if (question.AnswerType === 0 || question.AnswerType === 1) {
                 const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
@@ -550,7 +456,6 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
                 text: question.Text,
                 userAnswer: userAnswer,
                 userAnswerText: userAnswerText,
-                isCorrect: isCorrect,
                 isAnswered: isAnswered,
                 answerType: question.AnswerType,
                 correctAnswer: correctAnswerText,
