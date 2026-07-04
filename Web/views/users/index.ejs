@@ -1,0 +1,100 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="table-container">
+        <h2>Users</h2>
+        <form action="/users" method="GET">
+            <div class="form-search">
+                <input type="text" id="searchValue" name="searchValue" placeholder="Search" value="<%= searchValue ? searchValue : '' %>">
+                <button type="submit">
+                    <img src="/images/search-icon.png" alt="Search">
+                </button>
+            </div>
+        </form>
+        
+        <% if (users && users.length > 0) { %>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th><a href="#" onclick="sortTable(event, 'Username')">Username</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Name')">Name</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Email')">Email</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Phone Number')">Phone Number</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Date Registered')">Date Registered</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Status')">Status</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Role')">Role</a></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% users.forEach(user => { %>
+                        <tr>
+                            <td>
+                                <a href="/users/detail/<%= user.Id %>">
+                                    <%= user.UserName %>
+                                </a>
+                            </td>
+                            <td><%= user.FirstName %> <%= user.LastName %></td>
+                            <td><%= user.Email %></td>
+                            <td><%= user.PhoneNumber || 'N/A' %></td>
+                            <td><%= user.StartDate ? user.StartDate.split('T')[0] : 'N/A' %></td>
+                            <td><%= user.IsActive ? "Active" : "Inactive" %></td>
+                            <td><%= user.Role || 'User' %></td>
+                            <td>
+                                <a class="delete" href="/users/delete/<%= user.Id %>">
+                                    <img src="/images/delete-icon.png" alt="Delete" width="20" height="20">
+                                </a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <div class="no-results">
+                <p>No users found</p>
+            </div>
+        <% } %>
+    </div>
+    
+    <%- include('../partials/pagination') %>
+    
+    <div class="row pb-3">
+        <div class="col-6 text-end">
+            <a href="/users/create" class="btn">Create User</a>
+        </div>
+    </div>
+
+    <script>
+        function sortTable(event, column) {
+            event.preventDefault();
+            const currentUrl = new URL(window.location.href);
+            const currentSort = currentUrl.searchParams.get('sortName');
+            const currentOrder = currentUrl.searchParams.get('sortOrder') || 'asc';
+            
+            let newOrder = 'asc';
+            if (currentSort === column) {
+                newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            }
+            
+            currentUrl.searchParams.set('sortName', column);
+            currentUrl.searchParams.set('sortOrder', newOrder);
+            window.location.href = currentUrl.toString();
+        }
+
+        // Optional: Add keyboard support for search
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchValue');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        this.closest('form').submit();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

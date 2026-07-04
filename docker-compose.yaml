@@ -1,0 +1,45 @@
+# Remove this line: version: '3.8'
+services:
+  api:
+    image: testtaker_api:latest
+    build: ./api
+    container_name: testtaker_api_c01
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./api:/testtaker/src/api
+      - /testtaker/src/api/node_modules
+    depends_on:
+      - sqlserver
+    environment:
+      - DB_HOST=sqlserver
+      - DB_PORT=1433
+      - DB_USER=sa
+      - DB_PASSWORD=P@$$w0rd_1
+      - DB_NAME=testtaker
+
+  web:
+    image: testtaker_web:latest
+    build: ./web
+    container_name: testtaker_web_c01
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./web:/testtaker/src/web
+      - /testtaker/src/web/node_modules
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: testtaker_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=P@$$w0rd_1
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./sql-scripts:/sql-scripts
+
+volumes:
+  sqlserver_data:

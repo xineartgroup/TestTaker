@@ -1,0 +1,94 @@
+<nav>
+    <div class="site-main">
+        <div class="site-title">
+            <span>
+                <% if (session.user && session.user.Picture) { %>
+                    <img src="/uploads/<%= session.user.Picture %>" alt="Profile Image" class="profile-pic" />
+                <% } else { %>
+                    <img src="/images/default_image.jpg" alt="Default Profile Image" class="profile-pic" />
+                <% } %>
+                <a href="/">
+                    <img src="/images/logo-name.svg" alt="XineArt" class="site-logo" />
+                </a>
+            </span>
+        </div>
+        <div class="site-menu">
+            <ul>
+                <li class="dropdown">
+                    <a href="#">User ▼</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="/users/update/<%= (session.user) ? session.user.Id : '0' %>">Update Profile</a></li>
+                        <li><hr></li>
+                        <li><a href="/users/changepassword">Change Password</a></li>
+                    </ul>
+                </li>
+                <li></li>
+                <li class="dropdown"><a href="/logout">Logout</a></li>
+            </ul>       
+        </div>
+    </div>
+    <div class="site-sub">
+        <div><strong><%= title %></strong></div>
+        <div>
+            <p>Logged in as <strong><%= (session.user) ? session.user.UserName : 'Guest' %></strong><%= (session.user) ? ' (' + session.user.Role + ')' : '' %></p>
+        </div> 
+    </div>
+</nav>
+
+<script>
+    const columnMap = {
+        "Phone Number": "PhoneNumber",
+        "Date Created": "DateCreated",
+        "Date Registered": "StartDate",
+        "Due Date": "DueDate",
+        "User": "c.UserName",
+        "Contribution": "cn.Name",
+        "Amount Owed": "cn.Amount",
+        "Amount Paid": "AmountPaid",
+        "Previously Paid": "AmountPaid",
+        "Amount to Approve": "AmountToApprove"
+    };
+
+    function sortTable(event, column) {
+        event.preventDefault();
+        
+        let columnKey = columnMap[column];
+        if (!columnKey) columnKey = column;
+
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        const currentSort = params.get('sortOrder');
+        const page = params.get('page');
+        const searchValue = params.get('searchValue');
+        
+        const newSort = currentSort === 'asc' ? 'desc' : 'asc';
+        
+        [...params.keys()].forEach(param => params.delete(param));
+        if (page) params.set('page', page);
+        if (searchValue) params.set('searchValue', searchValue);
+        params.set('sortName', columnKey);
+        params.set('sortOrder', newSort);
+        
+        window.location.href = url.toString();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        document.querySelectorAll("thead a").forEach(function(a) {
+            let column = a.innerText.replace("▼", "").replace("▲", "").trim();
+            
+            let columnKey = columnMap[column];
+            if (!columnKey) columnKey = column;
+            
+            const currentName = urlParams.get('sortName');
+            const currentOrder = urlParams.get('sortOrder');
+            
+            if (columnKey === currentName && currentOrder) {
+                a.innerHTML = column + " " + (currentOrder === "asc" ? "▲" : "▼");
+            } else {
+                a.innerHTML = column;
+            }
+        });
+    });
+</script>

@@ -1,0 +1,41 @@
+
+<div class="pagination">
+    <% if (currentPage > 1) { %>
+        <a class="button-link prev" href="?page=<%= currentPage - 1 %>&searchValue=<%= searchValue ? searchValue : '' %>&sortName=<%= sortName ? sortName : '' %>&sortOrder=<%= sortOrder ? sortOrder : '' %>">&lt;</a>
+    <% } %>
+
+    <% if (totalPages > 7) { %>
+        <% if (currentPage > 4) { %>
+            <a class="button-link" href="?page=1">1</a>
+            <% if (currentPage > 5) { %>
+                <span class="ellipsis">...</span>
+            <% } %>
+        <% } %>
+
+        <% for (let i = Math.max(1, currentPage - 3); i <= Math.min(totalPages, currentPage + 3); i++) { %>
+            <a class="button-link <%= i === currentPage ? 'active' : '' %>" 
+               href="?page=<%= i %>&searchValue=<%= searchValue ? searchValue : '' %>&sortName=<%= sortName ? sortName : '' %>&sortOrder=<%= sortOrder ? sortOrder : '' %>">
+                <%= i %>
+            </a>
+        <% } %>
+
+        <% if (currentPage < totalPages - 3) { %>
+            <% if (currentPage < totalPages - 4) { %>
+                <span class="ellipsis">...</span>
+            <% } %>
+            <a class="button-link" href="?page=<%= totalPages %>"><%= totalPages %></a>
+        <% } %>
+
+    <% } else { %>
+        <% for (let i = 1; i <= totalPages; i++) { %>
+            <a class="button-link <%= i === currentPage ? 'active' : '' %>" 
+               href="?page=<%= i %>&searchValue=<%= searchValue ? searchValue : '' %>&sortName=<%= sortName ? sortName : '' %>&sortOrder=<%= sortOrder ? sortOrder : '' %>">
+                <%= i %>
+            </a>
+        <% } %>
+    <% } %>
+
+    <% if (currentPage < totalPages) { %>
+        <a class="button-link next" href="?page=<%= currentPage + 1 %>&searchValue=<%= searchValue ? searchValue : '' %>&sortName=<%= sortName ? sortName : '' %>&sortOrder=<%= sortOrder ? sortOrder : '' %>">&gt;</a>
+    <% } %>
+</div>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="exam-container">
+        <!-- Progress Bar - Fixed -->
+        <div class="progress-container">
+            <div class="progress-bar" style="width: 0%"></div> <!-- <%= progress %> -->
+            <div class="progress-text">
+                Question <%= currentIndex + 1 %> of <%= totalQuestions %>
+                (<%= progress %>%)
+            </div>
+        </div>
+        
+        <!-- Timer -->
+        <div class="timer-container" id="timer">
+            <span class="timer-icon">⏱️</span>
+            <span class="timer-text" id="timerDisplay">
+                <%= String(remainingMinutes).padStart(2, '0') %>:<%= String(remainingSeconds).padStart(2, '0') %>
+            </span>
+            <span class="timer-label">remaining</span>
+        </div>
+        
+        <!-- Question Card -->
+        <div class="question-card">
+            <div class="question-header">
+                <span class="question-number">Question <%= currentIndex + 1 %></span>
+                <span class="question-type">
+                    <% if (question.AnswerType === 0) { %>
+                        Single Choice
+                    <% } else if (question.AnswerType === 1) { %>
+                        Multiple Choice
+                    <% } else if (question.AnswerType === 2) { %>
+                        Text Answer
+                    <% } %>
+                </span>
+            </div>
+            
+            <div class="question-text">
+                <p><%= question.Text %></p>
+            </div>
+            
+            <form id="answerForm" action="/exams/take/<%= examId %>/answer/<%= currentIndex %>" method="POST">
+                <div class="options-container">
+                    <% if (question.AnswerType === 0) { %>
+                        <!-- Single Choice - Radio Buttons -->
+                        <% question.Options.forEach(option => { %>
+                            <div class="option-item radio-option">
+                                <input type="radio" 
+                                       name="answer" 
+                                       id="option_<%= option.Id %>" 
+                                       value="<%= option.Id %>"
+                                       <%= userAnswer && userAnswer === option.Id ? 'checked' : '' %>
+                                       required>
+                                <label for="option_<%= option.Id %>">
+                                    <%= option.Text %>
+                                </label>
+                            </div>
+                        <% }) %>
+                    <% } else if (question.AnswerType === 1) { %>
+                        <!-- Multiple Choice - Checkboxes -->
+                        <div class="multiple-choice-note">Select all that apply:</div>
+                        <% question.Options.forEach(option => { %>
+                            <div class="option-item checkbox-option">
+                                <input type="checkbox" 
+                                       name="answer" 
+                                       id="option_<%= option.Id %>" 
+                                       value="<%= option.Id %>"
+                                       <%= userAnswer && userAnswer.includes && userAnswer.includes(option.Id) ? 'checked' : '' %>>
+                                <label for="option_<%= option.Id %>">
+                                    <%= option.Text %>
+                                </label>
+                            </div>
+                        <% }) %>
+                        <input type="hidden" name="answerType" value="multiple">
+                    <% } else if (question.AnswerType === 2) { %>
+                        <!-- Text Answer -->
+                        <div class="text-answer-container">
+                            <textarea name="answer" 
+                                      id="textAnswer" 
+                                      rows="4" 
+                                      placeholder="Type your answer here..."
+                                      required><%= userAnswer || '' %></textarea>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <div class="question-actions">
+                    <button type="submit" class="btn btn-primary" id="submitAnswer">
+                        <% if (isLast) { %>
+                            Submit Exam
+                        <% } else { %>
+                            Next Question →
+                        <% } %>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // 1. Correctly inject your EJS variables into JavaScript variables
+        let totalSecs = parseInt('<%= totalSeconds || 0 %>') || 0;
+        let elapsedSecs = parseInt('<%= elapsedSeconds || 0 %>') || 0;
+        let timerInterval;
+        
+        function updateTimer() {
+            const remaining = totalSecs - elapsedSecs;
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('timerDisplay').textContent = '00:00';
+                if (confirm('Time is up! Your exam will be submitted.')) {
+                    // Note: native .submit() bypasses the AJAX 'submit' listener below
+                    document.getElementById('answerForm').submit();
+                }
+                return;
+            }
+            
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            const timerContainer = document.querySelector('.timer-container');
+            if (remaining <= 300) timerContainer.classList.add('warning');
+            if (remaining <= 60) timerContainer.classList.add('danger');
+            
+            elapsedSecs++;
+        }
+        
+        if (elapsedSecs < totalSecs) {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+        
+        // Handle form submission via standard URLSearchParams (or JSON)
+        document.getElementById('answerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            const answerTypeInput = form.querySelector('input[name="answerType"]');
+            const isMultiple = answerTypeInput && answerTypeInput.value === 'multiple';
+            
+            // Use URLSearchParams so Express's urlencoded parser captures it perfectly
+            const searchParams = new URLSearchParams();
+            let hasAnswer = false;
+            
+            if (isMultiple) {
+                searchParams.append('answerType', 'multiple');
+                const checkboxes = form.querySelectorAll('input[type="checkbox"]:checked');
+                checkboxes.forEach(cb => {
+                    searchParams.append('answer', cb.value); // Appends multiple elements to the same key
+                    hasAnswer = true;
+                });
+            } else {
+                const radioChecked = form.querySelector('input[type="radio"]:checked');
+                const textarea = form.querySelector('textarea[name="answer"]');
+                
+                if (radioChecked) {
+                    searchParams.append('answer', radioChecked.value);
+                    hasAnswer = true;
+                } else if (textarea && textarea.value.trim() !== '') {
+                    searchParams.append('answer', textarea.value.trim());
+                    hasAnswer = true;
+                }
+            }
+            
+            if (!hasAnswer) {
+                alert('Please provide an answer before continuing.');
+                return;
+            }
+            
+            // Fire the AJAX request using a format your backend natively parses
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: searchParams.toString()
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response failure');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error submitting answer: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Submission error:', error);
+                alert('An error occurred while transmitting your answer. Please try again.');
+            });
+        });
+        
+        // Keyboard navigation - Enter to submit (but not in textarea)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                const submitBtn = document.getElementById('submitAnswer');
+                if (submitBtn) {
+                    submitBtn.click();
+                }
+            }
+        });
+
+        // Example client-side submission handler
+        async function submitAnswer(examId, currentIndex, answerData) {
+            const token = localStorage.getItem('jwt_token'); // Or wherever you store your token
+
+            const response = await fetch(`/exams/take/${examId}/answer/${currentIndex}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ answer: answerData })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.completed) {
+                    // CRITICAL: Fetch the HTML page manually with the token attached
+                    const pageResponse = await fetch(data.redirect, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (pageResponse.ok) {
+                        const html = await pageResponse.text();
+                        
+                        // Write the new view into the document
+                        document.open();
+                        document.write(html);
+                        document.close();
+
+                        // Keep the browser URL in sync so refreshing works
+                        window.history.pushState({}, '', data.redirect);
+                    } else {
+                        console.error("Failed to load completion page status:", pageResponse.status);
+                    }
+                } else {
+                    // If just moving to the next question, you can either repeat the fetch trick 
+                    // or use your existing single-page navigation if your app is built that way.
+                    window.location.href = data.redirect; 
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .exam-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .progress-container {
+            position: relative;
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .timer-container.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .timer-container.danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .timer-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        .timer-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-right: 10px;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .timer-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .question-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .question-number {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .question-type {
+            background: #e9ecef;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .question-text {
+            margin: 20px 0 30px;
+            font-size: 18px;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+        
+        .options-container {
+            margin: 20px 0;
+        }
+        
+        .multiple-choice-note {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+        
+        .option-item {
+            margin-bottom: 12px;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        
+        .option-item:hover {
+            background: #e9ecef;
+            border-color: #dee2e6;
+        }
+        
+        .option-item input[type="radio"],
+        .option-item input[type="checkbox"] {
+            margin-right: 12px;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .option-item label {
+            cursor: pointer;
+            font-size: 16px;
+            color: #2c3e50;
+            flex: 1;
+            margin: 0;
+        }
+        
+        .option-item.radio-option input[type="radio"]:checked + label {
+            color: #2980b9;
+            font-weight: 500;
+        }
+        
+        .option-item.checkbox-option input[type="checkbox"]:checked + label {
+            color: #2980b9;
+            font-weight: 500;
+        }
+        
+        .option-item:has(input:checked) {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .text-answer-container {
+            margin: 20px 0;
+        }
+        
+        .text-answer-container textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        .text-answer-container textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .question-actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border-radius: 6px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        
+        @media (max-width: 600px) {
+            .question-card {
+                padding: 20px;
+            }
+            
+            .question-text {
+                font-size: 16px;
+            }
+            
+            .timer-text {
+                font-size: 20px;
+            }
+            
+            .option-item {
+                padding: 10px 12px;
+            }
+        }
+    </style>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

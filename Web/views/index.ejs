@@ -1,0 +1,54 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('./partials/header.ejs') %>
+<body>
+    <%- include('./partials/nav.ejs') %>
+
+    <div class="table-container">
+        <div class="welcome-message" style="margin-bottom: 30px;">
+            <p>Welcome back, <%= session.user.FirstName %> <%= session.user.LastName %>!</p>
+        </div>
+
+        <form action="/" method="GET">
+            <div class="form-search">
+                <input type="text" id="searchValue" name="searchValue" placeholder = "Search" value="<%= searchValue ? searchValue : '' %>">
+                <button type="submit">
+                    <img src="/images/search-icon.png" alt="Search">
+                </button>
+            </div>
+        </form>
+        
+        <% if (session.user) { %>
+            <% if (typeof exams !== 'undefined' && exams.length > 0) { %>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Exam Name</th>
+                            <th>Duration</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% exams.forEach(exam => { %>
+                            <tr>
+                                <td><%= exam.Name %></td>
+                                <td><%= exam.Length %> mins</td>
+                                <td>
+                                    <a href="/exams/take/<%= exam.Id %>" class="table-button success">Take Exam</a>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            <% } else { %>
+                <p style="color: #666; margin-top: 10px;">No exams available at this time.</p>
+            <% } %>
+
+        <% } else { %>
+            <div class="welcome-message">
+                <p>Welcome to the User Management System. Please <a href="/login">login</a> to continue.</p>
+            </div>
+        <% } %>
+    </div>
+</body>
+<%- include('./partials/footer.ejs') %>
+</html>
