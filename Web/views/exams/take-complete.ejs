@@ -46,9 +46,9 @@
                     <span>Performance</span>
                     <span><%= percentage %>%</span>
                 </div>
-                <!--<div class="progress-bar">
-                    <div class="progress-fill" style="width: <%= percentage %>%"></div>
-                </div>-->
+                <div class="progress-bar">
+                    <!-- <div class="progress-fill" style="width: <%= percentage %>%"></div> -->
+                </div>
             </div>
             
             <!-- Detailed Results -->
@@ -72,14 +72,27 @@
                             </div>
                             <div class="result-text">
                                 <div class="result-question"><%= detail.text %></div>
+                                
+                                <!-- Your Answer -->
                                 <div class="result-answer">
                                     <% if (detail.isAnswered) { %>
                                         <span class="answer-label">Your Answer:</span>
-                                        <% if (detail.answerType === 0 || detail.answerType === 1) { %>
-                                            <span class="answer-value"><%= detail.userAnswerText || 'Option ' + detail.userAnswer %></span>
-                                        <% } else if (detail.answerType === 2) { %>
-                                            <span class="answer-value"><%= detail.userAnswerText || 'Not provided' %></span>
-                                        <% } %>
+                                        <div class="answers-list">
+                                            <% 
+                                                let userAnswers = [];
+                                                if (detail.answerType === 1 && detail.userAnswerText && detail.userAnswerText.includes(',')) {
+                                                    userAnswers = detail.userAnswerText.split(',').map(a => a.trim());
+                                                } else if (detail.answerType === 0 || detail.answerType === 1) {
+                                                    userAnswers = [detail.userAnswerText || 'Option ' + detail.userAnswer];
+                                                } else if (detail.answerType === 2) {
+                                                    userAnswers = [detail.userAnswerText || 'Not provided'];
+                                                }
+                                                
+                                                userAnswers.forEach((answer, idx) => { 
+                                            %>
+                                                <span class="answer-value"><%= answer %></span>
+                                            <% }); %>
+                                        </div>
                                         <% if (detail.answerType === 2) { %>
                                             <span class="pending-badge">⏳ Pending Review</span>
                                         <% } %>
@@ -90,12 +103,23 @@
                                         <span class="answer-label">Not Answered</span>
                                     <% } %>
                                 </div>
+                                
+                                <!-- Correct Answer -->
                                 <% if (detail.correctAnswer) { %>
                                     <div class="result-correct-answer">
                                         <span class="answer-label">Correct Answer:</span>
-                                        <span class="answer-value correct"><%= detail.correctAnswer %></span>
+                                        <div class="correct-answers-list">
+                                            <% 
+                                                const correctAnswers = detail.correctAnswer ? detail.correctAnswer.split(',').map(a => a.trim()) : [];
+                                                correctAnswers.forEach((answer, idx) => { 
+                                            %>
+                                                <span class="answer-value correct"><%= answer %></span>
+                                            <% }); %>
+                                        </div>
                                     </div>
                                 <% } %>
+                                
+                                <!-- Points Earned -->
                                 <% if (detail.isAnswered) { %>
                                     <div class="result-score">
                                         <span class="answer-label">Points Earned:</span>
@@ -323,30 +347,6 @@
             border-radius: 20px;
         }
         
-        .results-list {
-            max-height: 500px;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
-        
-        .results-list::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .results-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        .results-list::-webkit-scrollbar-thumb {
-            background: #c1c7cd;
-            border-radius: 10px;
-        }
-        
-        .results-list::-webkit-scrollbar-thumb:hover {
-            background: #a8aeb4;
-        }
-        
         /* Result Item */
         .result-item {
             display: flex;
@@ -416,20 +416,44 @@
         
         .result-answer {
             display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
+            flex-direction: column;
+            gap: 4px;
             font-size: 14px;
             margin-bottom: 4px;
         }
         
+        .answers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-left: 5px;
+        }
+        
+        .answers-list .answer-value {
+            display: inline-block;
+            width: fit-content;
+        }
+        
         .result-correct-answer {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 5px;
             font-size: 14px;
             margin-top: 4px;
             padding-top: 4px;
             border-top: 1px dashed #e9ecef;
+        }
+        
+        .correct-answers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-left: 5px;
+        }
+        
+        .correct-answers-list .answer-value {
+            display: inline-block;
+            width: fit-content;
         }
         
         .result-score {
@@ -467,6 +491,9 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
+            display: inline-block;
+            width: fit-content;
+            margin-top: 4px;
         }
         
         .partial-badge {
@@ -476,6 +503,9 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
+            display: inline-block;
+            width: fit-content;
+            margin-top: 4px;
         }
         
         /* Actions */
