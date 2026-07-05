@@ -158,7 +158,6 @@ router.get('/take/:id', requireAuth, async (req, res) => {
         const shuffled = allQuestions.sort(() => 0.5 - Math.random());
         const selectedQuestions = shuffled.slice(0, questionCount);
         
-        // Fetch options concurrently instead of sequentially
         const questionsWithOptions = await Promise.all(
             selectedQuestions.map(async (question) => {
                 const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);
@@ -169,9 +168,14 @@ router.get('/take/:id', requireAuth, async (req, res) => {
             })
         );
         
+        // Generate a unique session ID for this exam attempt
+        const sessionId = `${Date.now()}-${req.user.Id}-${exam.Id}`;
+        
         req.session.currentExam = {
             examId: exam.Id,
             examName: exam.Name,
+            sessionId: sessionId,
+            userId: req.user.Id,
             questions: questionsWithOptions,
             currentIndex: 0,
             answers: {},
@@ -180,6 +184,22 @@ router.get('/take/:id', requireAuth, async (req, res) => {
             questionCount: questionCount,
             totalAvailableQuestions: allQuestions.length
         };
+        
+        // Fetch any existing answers for this session
+        const answersResult = await makeApiRequest('GET', `/api/answers?examId=${exam.Id}&sessionId=${sessionId}`, req);
+        if (answersResult.issuccess && answersResult.answers.length > 0) {
+            const answerMap = {};
+            answersResult.answers.forEach(a => {
+                if (a.AnswerOptionId && a.AnswerOptionId.includes(',')) {
+                    answerMap[a.QuestionId] = a.AnswerOptionId.split(',').map(id => parseInt(id.trim()));
+                } else if (a.AnswerOptionId) {
+                    answerMap[a.QuestionId] = parseInt(a.AnswerOptionId);
+                } else {
+                    answerMap[a.QuestionId] = a.AnswerText;
+                }
+            });
+            req.session.currentExam.answers = answerMap;
+        }
         
         return res.render('exams/take-start', {
             title: `Exam: ${exam.Name}`,
@@ -312,13 +332,20 @@ router.post('/take/:id/answer/:index', requireAuth, async (req, res) => {
         const saveResult = await makeApiRequest('POST', '/api/answers/save', req, {
             examId: id,
             questionId: question.Id,
+            sessionId: exam.sessionId,
             answerText: answerText,
             answerOptionId: answerOptionId
         });
         
         if (!saveResult.issuccess) {
             console.error('Failed to save answer to database:', saveResult.message);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to save answer to database. Please try again.' 
+            });
         }
+        
+        console.log(`Answer saved to database for question ${question.Id}`);
         
         const nextIndex = questionIndex + 1;
         const isCompleted = nextIndex >= exam.questions.length;
@@ -360,9 +387,10 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
         }
         
         const exam = req.session.currentExam;
+        const sessionId = exam.sessionId;
         
-        // Get all answers from database with their calculated points
-        const answersResult = await makeApiRequest('GET', `/api/answers?examId=${id}`, req);
+        // Get all answers from database for this session
+        const answersResult = await makeApiRequest('GET', `/api/answers?examId=${id}&sessionId=${sessionId}`, req);
         const dbAnswers = answersResult.issuccess ? answersResult.answers : [];
         
         // Build answer map from database
@@ -402,7 +430,6 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
             results.totalPoints += 1;
             results.earnedPoints += pointsEarned;
             
-            // Get user answer text for display
             let userAnswerText = null;
             let userAnswer = null;
             
@@ -437,7 +464,6 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
                 userAnswerText = userAnswer;
             }
             
-            // Get correct answer for display
             let correctAnswerText = null;
             if (question.AnswerType === 0 || question.AnswerType === 1) {
                 const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${question.Id}`, req);

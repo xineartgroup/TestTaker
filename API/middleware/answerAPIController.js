@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all answers for a user (with optional exam filter)
 router.get("/", authenticateToken, async (req, res) => {
     try {
-        const { examId, questionId } = req.query;
+        const { examId, questionId, sessionId } = req.query;
         const userId = req.user.Id;
         const pool = await getPool();
         
@@ -22,6 +22,11 @@ router.get("/", authenticateToken, async (req, res) => {
         if (questionId) {
             query += " AND QuestionId = @questionId";
             request.input('questionId', questionId);
+        }
+        
+        if (sessionId) {
+            query += " AND SessionId = @sessionId";
+            request.input('sessionId', sessionId);
         }
         
         const result = await request.query(query);
@@ -86,14 +91,14 @@ router.get("/:id", authenticateToken, async (req, res) => {
 // Save or update an answer
 router.post("/save", authenticateToken, async (req, res) => {
     try {
-        const { examId, questionId, answerText, answerOptionId } = req.body;
+        const { examId, questionId, answerText, answerOptionId, sessionId } = req.body;
         const userId = req.user.Id;
         const pool = await getPool();
         
-        console.log("Saving answer:", { examId, questionId, userId, answerText, answerOptionId });
+        console.log("Saving answer:", { examId, questionId, userId, answerText, answerOptionId, sessionId });
         
-        if (!examId || !questionId) {
-            throw new Error("ExamId and QuestionId are required");
+        if (!examId || !questionId || !sessionId) {
+            throw new Error("ExamId, QuestionId, and SessionId are required");
         }
         
         const questionResult = await pool.request()
@@ -108,7 +113,6 @@ router.post("/save", authenticateToken, async (req, res) => {
         let pointsEarned = 0;
         
         if (answerType === 0) {
-            // Single choice - calculate points immediately
             if (answerOptionId) {
                 const optionResult = await pool.request()
                     .input('optionId', answerOptionId)
@@ -120,9 +124,7 @@ router.post("/save", authenticateToken, async (req, res) => {
                 }
             }
         } else if (answerType === 1) {
-            // Multiple choice - calculate partial points immediately
             if (answerOptionId) {
-                // Parse the comma-separated string
                 let userAnswers = [];
                 if (typeof answerOptionId === 'string' && answerOptionId.includes(',')) {
                     userAnswers = answerOptionId.split(',').map(a => parseInt(a.trim()));
@@ -132,7 +134,6 @@ router.post("/save", authenticateToken, async (req, res) => {
                     userAnswers = [parseInt(answerOptionId)];
                 }
                 
-                // Get all options for this question
                 const optionsResult = await pool.request()
                     .input('questionId', questionId)
                     .query("SELECT Id, IsCorrect FROM Options WHERE QuestionId = @questionId");
@@ -164,7 +165,6 @@ router.post("/save", authenticateToken, async (req, res) => {
                 }
             }
         } else if (answerType === 2) {
-            // Text answer - needs manual grading
             pointsEarned = 0;
         }
         
@@ -172,7 +172,8 @@ router.post("/save", authenticateToken, async (req, res) => {
             .input('examId', examId)
             .input('userId', userId)
             .input('questionId', questionId)
-            .query("SELECT Id FROM Answers WHERE ExamId = @examId AND UserId = @userId AND QuestionId = @questionId");
+            .input('sessionId', sessionId)
+            .query("SELECT Id FROM Answers WHERE ExamId = @examId AND UserId = @userId AND QuestionId = @questionId AND SessionId = @sessionId");
         
         console.log("Check result:", checkResult.recordset);
         
@@ -198,12 +199,13 @@ router.post("/save", authenticateToken, async (req, res) => {
                 .input('examId', examId)
                 .input('userId', userId)
                 .input('questionId', questionId)
+                .input('sessionId', sessionId)
                 .input('answerText', answerText || null)
                 .input('answerOptionId', answerOptionId || null)
                 .input('pointsEarned', pointsEarned)
                 .query(`
-                    INSERT INTO Answers (ExamId, UserId, QuestionId, AnswerText, AnswerOptionId, PointsEarned, DateCreated)
-                    VALUES (@examId, @userId, @questionId, @answerText, @answerOptionId, @pointsEarned, GETDATE())
+                    INSERT INTO Answers (ExamId, UserId, QuestionId, SessionId, AnswerText, AnswerOptionId, PointsEarned, DateCreated)
+                    VALUES (@examId, @userId, @questionId, @sessionId, @answerText, @answerOptionId, @pointsEarned, GETDATE())
                 `);
             
             console.log(`Inserted answer for question ${questionId} with points: ${pointsEarned}`);
@@ -292,6 +294,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 router.get("/exam/:examId", authenticateToken, async (req, res) => {
     try {
         const { examId } = req.params;
+        const { sessionId } = req.query;
         const userId = req.user.Id;
         const pool = await getPool();
         
@@ -305,6 +308,11 @@ router.get("/exam/:examId", authenticateToken, async (req, res) => {
         `;
         
         let request = pool.request().input('examId', examId);
+        
+        if (sessionId) {
+            query += " AND a.SessionId = @sessionId";
+            request.input('sessionId', sessionId);
+        }
         
         if (req.user.Role !== 'Administrator') {
             query += " AND a.UserId = @userId";
