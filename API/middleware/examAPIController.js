@@ -15,7 +15,7 @@ router.get("/", authenticateToken, async (req, res) => {
             throw new Error(permissionResult.message);
         }
         
-        let query = "SELECT * FROM Exams";
+        let query = "SELECT Id, Name, SubjectId, Length, QuestionCount, QuestionType, DateCreated FROM Exams";
         let whereConditions = [];
 
         if (searchValue && searchValue !== "*") {
@@ -56,7 +56,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input("id", id)
-            .query("SELECT * FROM Exams WHERE Id = @id");
+            .query("SELECT Id, Name, SubjectId, Length, QuestionCount, QuestionType, DateCreated FROM Exams WHERE Id = @id");
 
         if (result.recordset.length === 0) {
             throw new Error("Exam not found");
@@ -76,7 +76,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
 
 router.post("/create", authenticateToken, async (req, res) => {
     try {
-        const { Name, SubjectId, Length, QuestionCount } = req.body;
+        const { Name, SubjectId, Length, QuestionCount, QuestionType } = req.body;
         const permissionResult = checkPermission(['createOwn', 'createAny'], 'exams', req.user);
         if (!permissionResult.issuccess) {
             throw new Error(permissionResult.message);
@@ -86,21 +86,23 @@ router.post("/create", authenticateToken, async (req, res) => {
         const dateCreated = new Date();
 
         const questionCount = QuestionCount || 0;
+        const questionType = QuestionType || 'Multiple Choice';
 
         const result = await pool.request()
             .input('Name', Name)
             .input('SubjectId', SubjectId)
             .input('Length', Length)
             .input('QuestionCount', questionCount)
+            .input('QuestionType', questionType)
             .input('DateCreated', dateCreated)
-            .query("INSERT INTO Exams (Name, SubjectId, Length, QuestionCount, DateCreated) OUTPUT INSERTED.Id VALUES (@Name, @SubjectId, @Length, @QuestionCount, @DateCreated)");
+            .query("INSERT INTO Exams (Name, SubjectId, Length, QuestionCount, QuestionType, DateCreated) OUTPUT INSERTED.Id VALUES (@Name, @SubjectId, @Length, @QuestionCount, @QuestionType, @DateCreated)");
         
         const Id = result.recordset.length > 0 ? result.recordset[0].Id : 0;
         return res.json({ 
             issuccess: true, 
             message: "", 
             count: 1, 
-            exam: { Id, Name, SubjectId, Length, QuestionCount: questionCount, DateCreated: dateCreated } 
+            exam: { Id, Name, SubjectId, Length, QuestionCount: questionCount, QuestionType: questionType, DateCreated: dateCreated } 
         });
 
     } catch (err) {
@@ -125,20 +127,22 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
         }
 
         let exam = result.recordset[0];
-        const { Name, SubjectId, Length, QuestionCount } = req.body;
+        const { Name, SubjectId, Length, QuestionCount, QuestionType } = req.body;
 
         exam.Name = Name || exam.Name;
         exam.SubjectId = SubjectId !== undefined ? SubjectId : exam.SubjectId;
         exam.Length = Length !== undefined ? Length : exam.Length;
         exam.QuestionCount = QuestionCount !== undefined ? QuestionCount : exam.QuestionCount;
+        exam.QuestionType = QuestionType || exam.QuestionType;
 
         await pool.request()
             .input('Name', exam.Name)
             .input('SubjectId', exam.SubjectId)
             .input('Length', exam.Length)
             .input('QuestionCount', exam.QuestionCount)
+            .input('QuestionType', exam.QuestionType)
             .input('id', exam.Id)
-            .query("UPDATE Exams SET Name = @Name, SubjectId = @SubjectId, Length = @Length, QuestionCount = @QuestionCount WHERE Id = @id");
+            .query("UPDATE Exams SET Name = @Name, SubjectId = @SubjectId, Length = @Length, QuestionCount = @QuestionCount, QuestionType = @QuestionType WHERE Id = @id");
 
         return res.json({ issuccess: true, message: "", count: 1, exam });
 
@@ -181,7 +185,7 @@ router.get("/take/:id", authenticateToken, async (req, res) => {
         
         const examResult = await pool.request()
             .input("id", id)
-            .query("SELECT * FROM Exams WHERE Id = @id");
+            .query("SELECT Id, Name, Length, QuestionCount, QuestionType FROM Exams WHERE Id = @id");
             
         if (examResult.recordset.length === 0) {
             return res.status(404).render('error', { 
@@ -222,11 +226,14 @@ router.get("/take/:id", authenticateToken, async (req, res) => {
         req.session.currentExam = {
             examId: id,
             examName: exam.Name,
+            examLength: exam.Length || 60,
+            questionType: exam.QuestionType || 'Multiple Choice',
             questions: questionsWithOptions,
             currentIndex: 0,
             answers: {},
             startTime: null,
-            isActive: false
+            isActive: false,
+            userId: req.user.id
         };
         
         return res.render('exam/start', {
@@ -295,7 +302,7 @@ router.get('/take/:id/question/:index', authenticateToken, async (req, res) => {
         
         const startTime = new Date(exam.startTime);
         const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
-        const totalSeconds = 3600; 
+        const totalSeconds = exam.examLength ? exam.examLength * 60 : 3600;
         const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
@@ -415,7 +422,8 @@ router.get('/take/:id/complete', authenticateToken, async (req, res) => {
             incorrect: 0,
             totalPoints: exam.questions.length,
             earnedPoints: 0,
-            details: []
+            details: [],
+            questionType: exam.questionType
         };
 
         for (const question of exam.questions) {
@@ -539,7 +547,8 @@ router.get('/take/:id/complete', authenticateToken, async (req, res) => {
             title: 'Exam Complete',
             results: results,
             examName: examName,
-            percentage: percentage
+            percentage: percentage,
+            questionType: exam.questionType
         });
         
     } catch (error) {

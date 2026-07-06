@@ -5,9 +5,9 @@
     <%- include('../partials/nav.ejs') %>
     
     <div class="exam-container">
-        <!-- Progress Bar - Fixed -->
+        <!-- Progress Bar -->
         <div class="progress-container">
-            <div class="progress-bar" style="width: 0%"></div> <!-- <%= progress %> -->
+            <div class="progress-bar" data-width="<%= progress %>%"></div>
             <div class="progress-text">
                 Question <%= currentIndex + 1 %> of <%= totalQuestions %>
                 (<%= progress %>%)
@@ -197,13 +197,22 @@
         });
         
         // Keyboard navigation - Enter to submit (but not in textarea)
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-                const submitBtn = document.getElementById('submitAnswer');
-                if (submitBtn) {
-                    submitBtn.click();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set progress bar width
+            document.querySelectorAll('.progress-bar').forEach(function(el) {
+                var width = el.getAttribute('data-width') || 0;
+                el.style.width = width + '%';
+            });
+
+            // Keyboard navigation - Enter to submit (but not in textarea)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                    const submitBtn = document.getElementById('submitAnswer');
+                    if (submitBtn) {
+                        submitBtn.click();
+                    }
                 }
-            }
+            });
         });
 
         // Example client-side submission handler

@@ -176,6 +176,8 @@ router.get('/take/:id', requireAuth, async (req, res) => {
             examName: exam.Name,
             sessionId: sessionId,
             userId: req.user.Id,
+            examLength: exam.Length || 60,
+            questionType: exam.QuestionType || 'Multiple Choice',
             questions: questionsWithOptions,
             currentIndex: 0,
             answers: {},
@@ -262,8 +264,11 @@ router.get('/take/:id/question/:index', requireAuth, async (req, res) => {
         const totalQuestions = exam.questions.length;
         const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100);
         
-        const elapsedSeconds = Math.floor((new Date() - new Date(exam.startTime)) / 1000);
-        const totalSeconds = 3600; 
+        const startTime = new Date(exam.startTime);
+        const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
+        
+        // Use the exam's Length (in minutes) from the session
+        const totalSeconds = exam.examLength ? exam.examLength * 60 : 3600; // Default to 60 minutes if not set
         const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
@@ -410,7 +415,8 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
             incorrect: 0,
             totalPoints: 0,
             earnedPoints: 0,
-            details: []
+            details: [],
+            questionType: exam.questionType
         };
         
         for (const question of exam.questions) {
@@ -501,7 +507,8 @@ router.get('/take/:id/complete', requireAuth, async (req, res) => {
             title: 'Exam Complete',
             results: results,
             examName: examName,
-            percentage: percentage
+            percentage: percentage,
+            questionType: exam.questionType
         });
         
     } catch (error) {
