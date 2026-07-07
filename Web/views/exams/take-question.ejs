@@ -39,7 +39,7 @@
             </div>
             
             <div class="question-text">
-                <p><%= question.Text %></p>
+                <p><pre class="question-pre"><%= question.Text %></pre></p>
             </div>
             
             <form id="answerForm" action="/exams/take/<%= examId %>/answer/<%= currentIndex %>" method="POST">
@@ -111,9 +111,16 @@
             if (remaining <= 0) {
                 clearInterval(timerInterval);
                 document.getElementById('timerDisplay').textContent = '00:00';
+                
                 if (confirm('Time is up! Your exam will be submitted.')) {
-                    // Note: native .submit() bypasses the AJAX 'submit' listener below
-                    document.getElementById('answerForm').submit();
+                    // Redirect directly to the complete page
+                    // Get the exam ID from the URL or a data attribute
+                    const examId = window.location.pathname.split('/')[3]; // Extracts ID from /exams/take/:id/question/:index
+                    window.location.href = `/exams/take/${examId}/complete`;
+                } else {
+                    // If user cancels, still redirect to complete
+                    const examId = window.location.pathname.split('/')[3];
+                    window.location.href = `/exams/take/${examId}/complete`;
                 }
                 return;
             }
@@ -376,6 +383,18 @@
             line-height: 1.6;
             color: #2c3e50;
         }
+
+        .question-pre {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: inherit;
+        }
         
         .options-container {
             margin: 20px 0;
@@ -391,7 +410,7 @@
         .option-item {
             margin-bottom: 12px;
             padding: 12px 15px;
-            background: #f8f9fa;
+            background: transparent;
             border-radius: 6px;
             border: 2px solid transparent;
             transition: all 0.3s;
@@ -415,7 +434,8 @@
         
         .option-item label {
             cursor: pointer;
-            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
             color: #2c3e50;
             flex: 1;
             margin: 0;
