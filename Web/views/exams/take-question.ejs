@@ -114,12 +114,11 @@
                 
                 if (confirm('Time is up! Your exam will be submitted.')) {
                     // Redirect directly to the complete page
-                    // Get the exam ID from the URL or a data attribute
                     const examId = window.location.pathname.split('/')[3]; // Extracts ID from /exams/take/:id/question/:index
                     window.location.href = `/exams/take/${examId}/complete`;
                 } else {
                     // If user cancels, still redirect to complete
-                    const examId = window.location.pathname.split('/')[3];
+                    const examId = window.location.pathname.split('/')[3]; // Extracts ID from /exams/take/:id/question/:index
                     window.location.href = `/exams/take/${examId}/complete`;
                 }
                 return;

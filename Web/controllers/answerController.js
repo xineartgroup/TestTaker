@@ -166,4 +166,43 @@ router.get('/review/:examId', requireAuth, async (req, res) => {
     }
 });
 
+router.get('/my-scores', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.Id;
+        
+        // Fetch scores from the answers API
+        const scoresResult = await makeApiRequest('GET', `/api/answers/scores`, req);
+        const scores = scoresResult.issuccess ? scoresResult.scores : [];
+        
+        // Calculate statistics
+        let totalQuestions = 0;
+        let totalScore = 0;
+        let bestScore = 0;
+        
+        scores.forEach(score => {
+            totalQuestions += score.TotalQuestions || 0;
+            totalScore += score.Percentage || 0;
+            if (score.Percentage > bestScore) bestScore = score.Percentage;
+        });
+        
+        const averageScore = scores.length > 0 ? Math.round(totalScore / scores.length) : 0;
+        
+        return res.render('answers/my-scores', {
+            title: 'My Scores',
+            scores: scores,
+            averageScore: averageScore,
+            bestScore: bestScore,
+            totalQuestions: totalQuestions,
+            totalExams: scores.length
+        });
+        
+    } catch (error) {
+        console.error("Error loading scores:", error);
+        return res.render('error', { 
+            title: 'Error', 
+            detail: error.message || 'Failed to load scores' 
+        });
+    }
+});
+
 module.exports = router;

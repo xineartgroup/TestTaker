@@ -49,6 +49,68 @@ router.get("/", authenticateToken, async (req, res) => {
     }
 });
 
+// Get user's exam scores grouped by session
+router.get("/scores", authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.Id;
+        const pool = await getPool();
+        
+        const result = await pool.request()
+            .input('userId', userId)
+            .query(`
+                SELECT 
+                    a.SessionId,
+                    a.ExamId,
+                    e.Name as ExamName,
+                    COUNT(DISTINCT a.QuestionId) as TotalQuestions,
+                    SUM(a.PointsEarned) as EarnedPoints,
+                    COUNT(DISTINCT a.QuestionId) as TotalPoints,
+                    MAX(a.DateCreated) as DateCreated,
+                    DATEDIFF(MINUTE, MIN(a.DateCreated), MAX(a.DateCreated)) as DurationMinutes
+                FROM Answers a
+                JOIN Exams e ON a.ExamId = e.Id
+                WHERE a.UserId = @userId
+                GROUP BY a.SessionId, a.ExamId, e.Name
+                ORDER BY MAX(a.DateCreated) DESC
+            `);
+        
+        const scores = result.recordset.map(row => {
+            const totalPoints = row.TotalPoints || 1;
+            const earnedPoints = row.EarnedPoints || 0;
+            const percentage = Math.round((earnedPoints / totalPoints) * 100);
+            
+            return {
+                SessionId: row.SessionId,
+                ExamId: row.ExamId,
+                ExamName: row.ExamName,
+                TotalQuestions: row.TotalQuestions,
+                Correct: Math.round(earnedPoints), // Approximate correct answers
+                EarnedPoints: earnedPoints,
+                TotalPoints: totalPoints,
+                Percentage: percentage,
+                DateCreated: row.DateCreated,
+                Duration: row.DurationMinutes ? `${row.DurationMinutes} mins` : 'N/A'
+            };
+        });
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: scores.length, 
+            scores: scores 
+        });
+        
+    } catch (err) {
+        console.error("Error fetching scores:", err);
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            scores: [] 
+        });
+    }
+});
+
 // Get a specific answer by ID
 router.get("/:id", authenticateToken, async (req, res) => {
     try {

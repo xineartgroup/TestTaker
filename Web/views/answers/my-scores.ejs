@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="scores-container">
+        <div class="scores-card">
+            <!-- Header -->
+            <div class="scores-header">
+                <div class="header-icon">📊</div>
+                <h1>My Past Scores</h1>
+                <p class="subtitle">View your exam history and performance</p>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="scores-summary">
+                <div class="summary-item">
+                    <span class="summary-label">Total Exams Taken</span>
+                    <span class="summary-value"><%= totalExams || 0 %></span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Average Score</span>
+                    <span class="summary-value"><%= averageScore %>%</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Best Score</span>
+                    <span class="summary-value"><%= bestScore %>%</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Total Questions</span>
+                    <span class="summary-value"><%= totalQuestions %></span>
+                </div>
+            </div>
+
+            <!-- Scores List -->
+            <div class="scores-list-container">
+                <div class="list-header">
+                    <h3>Exam History</h3>
+                    <span class="record-count"><%= scores ? scores.length : 0 %> records</span>
+                </div>
+
+                <% if (scores && scores.length > 0) { %>
+                    <div class="scores-list">
+                        <% scores.forEach((score, index) => { %>
+                            <div class="score-item">
+                                <div class="score-rank">
+                                    <span class="rank-number"><%= index + 1 %></span>
+                                </div>
+                                <div class="score-details">
+                                    <div class="score-exam-name">
+                                        <span class="exam-title"><%= score.ExamName || 'Exam' %></span>
+                                        <span class="exam-date"><%= new Date(score.DateCreated).toLocaleDateString() %></span>
+                                    </div>
+                                    <div class="score-metrics">
+                                        <div class="metric">
+                                            <span class="metric-label">Score</span>
+                                            <span class="metric-value score-percentage"><%= score.Percentage %>%</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="metric-label">Correct</span>
+                                            <span class="metric-value score-correct"><%= score.Correct %>/<%= score.TotalQuestions %></span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="metric-label">Points</span>
+                                            <span class="metric-value score-points"><%= score.EarnedPoints.toFixed(1) %>/<%= score.TotalPoints %></span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="metric-label">Duration</span>
+                                            <span class="metric-value score-duration"><%= score.Duration || 'N/A' %></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!--<div class="score-status">
+                                    <span class="status-badge <%= score.Percentage >= 70 ? 'passed' : 'failed' %>">
+                                        <%= score.Percentage >= 70 ? '✅ Passed' : '❌ Failed' %>
+                                    </span>
+                                </div>-->
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <h3>No Exam Records Found</h3>
+                        <p>You haven't completed any exams yet. Start taking an exam to see your scores here.</p>
+                        <a href="/" class="btn btn-primary">Browse Exams</a>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Actions -->
+            <div class="scores-actions">
+                <a href="/" class="btn btn-primary">
+                    <span>🏠</span> Return to Home
+                </a>
+                <a href="javascript:window.print()" class="btn btn-outline">
+                    <span>🖨️</span> Print Results
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Container */
+        .scores-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Card */
+        .scores-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        /* Header */
+        .scores-header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .scores-header h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            font-size: 18px;
+        }
+
+        /* Summary */
+        .scores-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 30px 0 35px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        .summary-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .summary-label {
+            display: block;
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            display: block;
+            font-size: 30px;
+            font-weight: bold;
+            color: #2c3e50;
+            line-height: 1.2;
+        }
+
+        /* List */
+        .scores-list-container {
+            margin: 30px 0;
+        }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .list-header h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .record-count {
+            color: #6c757d;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* Score Item */
+        .scores-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s;
+            gap: 20px;
+        }
+
+        .score-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .score-item.passed {
+            border-left-color: #27ae60;
+        }
+
+        .score-item.failed {
+            border-left-color: #e74c3c;
+        }
+
+        .score-rank {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6c757d;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .score-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .score-exam-name {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .exam-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .exam-date {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .score-metrics {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .metric-label {
+            color: #6c757d;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .score-percentage {
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .score-correct {
+            color: #27ae60;
+        }
+
+        .score-points {
+            color: #f39c12;
+        }
+
+        .score-duration {
+            color: #6c757d;
+        }
+
+        .score-status {
+            flex-shrink: 0;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .status-badge.passed {
+            background: #d5f5e3;
+            color: #27ae60;
+        }
+
+        .status-badge.failed {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin: 0 0 10px 0;
+        }
+
+        .empty-state p {
+            color: #6c757d;
+            margin: 0 0 20px 0;
+            font-size: 16px;
+        }
+
+        /* Actions */
+        .scores-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 2px solid #dee2e6;
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+            border-color: #6c757d;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .scores-card {
+                padding: 25px 20px;
+            }
+
+            .scores-header h1 {
+                font-size: 26px;
+            }
+
+            .scores-summary {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .summary-item {
+                padding: 8px;
+            }
+
+            .summary-value {
+                font-size: 24px;
+            }
+
+            .score-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 15px;
+                gap: 12px;
+            }
+
+            .score-rank {
+                align-self: center;
+            }
+
+            .score-exam-name {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .score-metrics {
+                gap: 10px;
+            }
+
+            .score-status {
+                align-self: flex-start;
+            }
+
+            .scores-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                justify-content: center;
+                padding: 14px 20px;
+            }
+
+            .list-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .scores-summary {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .summary-value {
+                font-size: 20px;
+            }
+
+            .metric {
+                font-size: 12px;
+            }
+
+            .exam-title {
+                font-size: 14px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .scores-actions,
+            .btn {
+                display: none !important;
+            }
+
+            .scores-card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+
+            .score-item {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>
