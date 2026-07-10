@@ -39,7 +39,7 @@
             </div>
             
             <div class="question-text">
-                <p><pre class="question-pre"><%= question.Text %></pre></p>
+                <%- question.Text %>
             </div>
             
             <form id="answerForm" action="/exams/take/<%= examId %>/answer/<%= currentIndex %>" method="POST">
@@ -374,6 +374,17 @@
             border-radius: 20px;
             font-size: 12px;
             color: #6c757d;
+        }
+        
+        .question-text pre, 
+        .question-text code {
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 16px;
+        }
+
+        .question-text code {
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 14px; 
         }
         
         .question-text {

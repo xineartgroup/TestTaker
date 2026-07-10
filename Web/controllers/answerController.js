@@ -2,13 +2,23 @@ const express = require("express");
 const { makeApiRequest } = require("./_baseController");
 const router = express.Router();
 
-// Middleware to check authentication
+// Middleware to check authentication status
 const requireAuth = (req, res, next) => {
     if (!req.session || !req.session.isLoggedIn) {
-        return res.status(401).json({ 
-            issuccess: false, 
-            message: "Not authenticated" 
-        });
+        // Check if the request expects JSON (API call)
+        const isApiRequest = req.xhr || 
+                            req.headers.accept?.includes('application/json') || 
+                            req.path.startsWith('/api/');
+        
+        if (isApiRequest) {
+            return res.status(401).json({ 
+                issuccess: false, 
+                message: "Not authenticated" 
+            });
+        }
+        
+        // For page requests, redirect to login
+        return res.redirect('/login');
     }
     
     req.user = {
