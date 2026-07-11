@@ -99,7 +99,15 @@ const userCreateGet = async (req, res) => {
             return res.redirect('/login');
         }
         
-        return res.render('users/create', { title: 'New User' });
+        // Fetch schools that don't require invite
+        const schoolsResult = await makeApiRequest('GET', '/api/schools?requiresInvite=false', req);
+        const schools = schoolsResult.issuccess ? schoolsResult.schools : [];
+        
+        return res.render('users/create', { 
+            title: 'New User',
+            schools: schools,
+            error: null
+        });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
     }
@@ -113,13 +121,26 @@ const userCreatePost = async (req, res) => {
         }
 
         let user = req.body;
+        // Handle schools - convert to array if multiple selected
+        if (user.Schools) {
+            if (!Array.isArray(user.Schools)) {
+                user.Schools = [user.Schools];
+            }
+        }
 
         const result = await makeApiRequest('POST', '/api/users/create', req, user);
         
         if (result.issuccess) {
             return res.redirect('/users');
         } else {
-            return res.render('error', { title: 'Error', detail: result.message });
+            // Fetch schools again for error state
+            const schoolsResult = await makeApiRequest('GET', '/api/schools?requiresInvite=false', req);
+            const schools = schoolsResult.issuccess ? schoolsResult.schools : [];
+            return res.render('users/create', { 
+                title: 'New User',
+                schools: schools,
+                error: result.message
+            });
         }
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -136,14 +157,25 @@ const userUpdateGet = async (req, res) => {
         const result = await makeApiRequest('GET', `/api/users/${req.params.id}`, req);
         
         if (result.issuccess) {
+            // Get user's current schools from the API
+            const userSchoolsResult = await makeApiRequest('GET', `/api/users/${req.params.id}/schools`, req);
+            const userSchools = userSchoolsResult.issuccess ? userSchoolsResult.schools : [];
+            
+            // Get all schools that don't require invite
+            const allSchoolsResult = await makeApiRequest('GET', '/api/schools?requiresInvite=false', req);
+            const allSchools = allSchoolsResult.issuccess ? allSchoolsResult.schools : [];
+            
             return res.render('users/update', { 
                 title: 'Update User', 
-                user: result.user 
+                user: result.user,
+                userSchools: userSchools,
+                allSchools: allSchools
             });
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
     } catch (error) {
+        console.error('Error in userUpdateGet:', error);
         return res.render('error', { title: 'Error', detail: error.message || error });
     }
 };
@@ -157,6 +189,13 @@ const userUpdatePost = async (req, res) => {
 
         let user = req.body;
         user.Picture = req.file ? req.file.filename : user.Picture;
+        
+        // Handle schools - convert to array if multiple selected
+        if (user.Schools) {
+            if (!Array.isArray(user.Schools)) {
+                user.Schools = [user.Schools];
+            }
+        }
         
         const result = await makeApiRequest('POST', `/api/users/update/${req.params.id}`, req, user);
         

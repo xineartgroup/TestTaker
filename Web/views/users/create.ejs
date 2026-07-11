@@ -10,7 +10,7 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/users/create" method="POST" enctype="multipart/form-data">
+        <form action="/users/create" method="POST" enctype="multipart/form-data" id="userForm">
             <div class="form-group">
                 <label for="UserName">Username:</label>
                 <input type="text" id="UserName" name="UserName" required>
@@ -36,16 +36,6 @@
                 <input type="email" id="Email" name="Email" required>
             </div>
 
-            <!--<div class="form-group">
-                <label for="Role">Role:</label>
-                <select id="Role" name="Role" required>
-                    <option value="">--Select--</option>
-                    <option value="Administrator">Administrator</option>
-                    <option value="User">User</option>
-                    <option value="Manager">Manager</option>
-                </select>
-            </div>-->
-
             <div class="form-group">
                 <label for="PhoneNumber">Phone Number:</label>
                 <input type="text" id="PhoneNumber" name="PhoneNumber">
@@ -64,12 +54,425 @@
                 </select>
             </div>
 
+            <!-- Schools Selection -->
+            <div class="form-group">
+                <label>Schools:</label>
+                <div class="school-selector">
+                    <div id="schoolData" data-all-schools='<%= JSON.stringify(schools || []) %>'></div>
+                    <div class="school-search">
+                        <input type="text" id="schoolSearch" placeholder="Search for schools..." class="school-search-input">
+                        <button type="button" id="addSchoolBtn" class="btn-add-school">Add School</button>
+                    </div>
+                    <div class="school-search-results" id="schoolSearchResults"></div>
+                    <div class="selected-schools">
+                        <h4>Selected Schools</h4>
+                        <div id="selectedSchoolsList" class="selected-schools-list">
+                            <div class="empty-message">No schools selected</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="Schools" name="Schools" value="">
+                </div>
+                <span class="hint">Type to search for schools, then click "Add School" or click a search result to add it.</span>
+            </div>
+
             <div class="form-buttons">
                 <button type="submit">Create</button>
                 <a href="/users" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>
+
+    <style>
+        .hint {
+            display: block;
+            margin-top: 5px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        input[readonly] {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+        
+        .image-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .image-container img {
+            border: 3px solid #ddd;
+            padding: 5px;
+        }
+
+        .school-selector {
+            width: 70%;
+        }
+
+        .school-search {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .school-search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .school-search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-add-school {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .btn-add-school:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-add-school:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .school-search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+            background: white;
+        }
+
+        .school-search-results.show {
+            display: block;
+        }
+
+        .school-search-result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .school-search-result-item:hover {
+            background: #f0f4ff;
+        }
+
+        .school-search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .school-search-result-item .school-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .school-search-result-item .school-description {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: 10px;
+        }
+
+        .no-results {
+            padding: 15px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .selected-schools {
+            margin-top: 10px;
+        }
+
+        .selected-schools h4 {
+            font-size: 14px;
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+        }
+
+        .selected-schools-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 8px;
+            background: #f8f9fa;
+            min-height: 50px;
+        }
+
+        .selected-schools-list .empty-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #adb5bd;
+            font-size: 14px;
+            width: 100%;
+            height: 100%;
+            min-height: 34px;
+        }
+
+        .selected-school-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s;
+        }
+
+        .selected-school-item:hover {
+            border-color: #667eea;
+        }
+
+        .selected-school-item .school-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .selected-school-item .school-info .name {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .selected-school-item .school-info .description {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .btn-remove-school {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+            transition: all 0.2s;
+            margin: 0;
+        }
+
+        .btn-remove-school:hover {
+            color: #c82333;
+            transform: scale(1.2);
+        }
+
+        @media (max-width: 768px) {
+            .school-selector {
+                width: 100%;
+            }
+
+            .school-search {
+                flex-direction: column;
+            }
+
+            .btn-add-school {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get data from data attributes
+            const schoolData = document.getElementById('schoolData');
+            
+            let allAvailableSchools = [];
+            
+            try {
+                allAvailableSchools = JSON.parse(schoolData.dataset.allSchools || '[]');
+            } catch (e) {
+                console.error('Error parsing school data:', e);
+            }
+
+            console.log('All Available Schools:', allAvailableSchools);
+
+            let allSchools = allAvailableSchools;
+            let selectedSchools = [];
+            let searchTimeout = null;
+
+            const searchInput = document.getElementById('schoolSearch');
+            const searchResults = document.getElementById('schoolSearchResults');
+            const addBtn = document.getElementById('addSchoolBtn');
+            const selectedList = document.getElementById('selectedSchoolsList');
+            const hiddenInput = document.getElementById('Schools');
+
+            // If no schools were passed, fetch them
+            if (allSchools.length === 0) {
+                fetch('/api/schools?requiresInvite=false')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.issuccess) {
+                            allSchools = data.schools;
+                            updateSelectedList();
+                            updateHiddenInput();
+                        }
+                    })
+                    .catch(err => console.error('Error fetching schools:', err));
+            }
+
+            // Search functionality
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim().toLowerCase();
+                
+                clearTimeout(searchTimeout);
+                
+                if (query.length === 0) {
+                    searchResults.classList.remove('show');
+                    addBtn.disabled = true;
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    const filtered = allSchools.filter(school => 
+                        school.Name.toLowerCase().includes(query) &&
+                        !selectedSchools.some(s => s.Id === school.Id)
+                    );
+
+                    renderSearchResults(filtered);
+                    searchResults.classList.add('show');
+                    addBtn.disabled = filtered.length === 0;
+                }, 300);
+            });
+
+            // Close search results on outside click
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.school-search')) {
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            function renderSearchResults(schools) {
+                if (schools.length === 0) {
+                    searchResults.innerHTML = '<div class="no-results">No schools found</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = schools.map(school => `
+                    <div class="school-search-result-item" data-id="${school.Id}">
+                        <span class="school-name">${school.Name}</span>
+                        ${school.Description ? `<span class="school-description">${school.Description}</span>` : ''}
+                    </div>
+                `).join('');
+
+                searchResults.querySelectorAll('.school-search-result-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        const school = allSchools.find(s => s.Id === id);
+                        if (school && !selectedSchools.some(s => s.Id === id)) {
+                            addSchool(school);
+                            searchInput.value = '';
+                            searchResults.classList.remove('show');
+                            addBtn.disabled = true;
+                        }
+                    });
+                });
+            }
+
+            function addSchool(school) {
+                if (selectedSchools.some(s => s.Id === school.Id)) {
+                    return;
+                }
+
+                selectedSchools.push(school);
+                updateSelectedList();
+                updateHiddenInput();
+            }
+
+            function removeSchool(schoolId) {
+                selectedSchools = selectedSchools.filter(s => s.Id !== schoolId);
+                updateSelectedList();
+                updateHiddenInput();
+            }
+
+            function updateSelectedList() {
+                if (selectedSchools.length === 0) {
+                    selectedList.innerHTML = '<div class="empty-message">No schools selected</div>';
+                    selectedList.classList.add('empty');
+                    return;
+                }
+
+                selectedList.classList.remove('empty');
+                selectedList.innerHTML = selectedSchools.map(school => `
+                    <div class="selected-school-item">
+                        <div class="school-info">
+                            <span class="name">${school.Name}</span>
+                            ${school.Description ? `<span class="description">${school.Description}</span>` : ''}
+                        </div>
+                        <button type="button" class="btn-remove-school" data-id="${school.Id}">×</button>
+                    </div>
+                `).join('');
+
+                selectedList.querySelectorAll('.btn-remove-school').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        removeSchool(id);
+                    });
+                });
+            }
+
+            function updateHiddenInput() {
+                const ids = selectedSchools.map(s => s.Id);
+                hiddenInput.value = ids.join(',');
+            }
+
+            // Add button click handler
+            addBtn.addEventListener('click', function() {
+                const query = searchInput.value.trim();
+                if (query.length === 0) return;
+
+                const matches = allSchools.filter(school => 
+                    school.Name.toLowerCase().includes(query.toLowerCase()) &&
+                    !selectedSchools.some(s => s.Id === school.Id)
+                );
+
+                if (matches.length > 0) {
+                    addSchool(matches[0]);
+                    searchInput.value = '';
+                    searchResults.classList.remove('show');
+                    addBtn.disabled = true;
+                }
+            });
+
+            // Enter key in search input
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addBtn.click();
+                }
+            });
+
+            // Initialize
+            updateSelectedList();
+            updateHiddenInput();
+            addBtn.disabled = true;
+        });
+    </script>
 </body>
 <%- include('../partials/footer.ejs') %>
 </html>

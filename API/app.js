@@ -22,6 +22,7 @@ const subjectapiController = require('./middleware/subjectAPIController');
 const questionapiController = require('./middleware/questionAPIController');
 const optionapiController = require('./middleware/optionAPIController');
 const answerapiController = require('./middleware/answerAPIController');
+const schoolapiController = require('./middleware/schoolAPIController');
 
 const { generateToken, authenticateToken, checkPermission } = require("./middleware/_baseAPIController");
 
@@ -102,6 +103,7 @@ app.use('/api/subjects', subjectapiController);
 app.use('/api/questions', questionapiController);
 app.use('/api/options', optionapiController);
 app.use('/api/answers', answerapiController);
+app.use('/api/schools', schoolapiController);
 
 app.use('/api', (req, res) => {
     res.status(200).json({ message: 'API is working' });
