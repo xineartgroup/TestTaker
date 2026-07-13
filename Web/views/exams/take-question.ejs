@@ -55,7 +55,7 @@
                                        <%= userAnswer && userAnswer === option.Id ? 'checked' : '' %>
                                        required>
                                 <label for="option_<%= option.Id %>">
-                                    <%= option.Text %>
+                                    <%- option.Text %>
                                 </label>
                             </div>
                         <% }) %>
@@ -70,7 +70,7 @@
                                        value="<%= option.Id %>"
                                        <%= userAnswer && userAnswer.includes && userAnswer.includes(option.Id) ? 'checked' : '' %>>
                                 <label for="option_<%= option.Id %>">
-                                    <%= option.Text %>
+                                    <%- option.Text %>
                                 </label>
                             </div>
                         <% }) %>

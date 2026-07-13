@@ -18,6 +18,7 @@ const subjectController = require('./controllers/subjectController');
 const questionController = require('./controllers/questionController');
 const optionController = require('./controllers/optionController');
 const answerController = require('./controllers/answerController');
+const schoolController = require('./controllers/schoolController');
 
 const { makeApiRequest } = require("./controllers/_baseController");
 
@@ -227,6 +228,7 @@ app.use('/subjects', subjectController);
 app.use('/questions', questionController);
 app.use('/options', optionController);
 app.use('/answers', answerController);
+app.use('/schools', schoolController);
 
 app.use((req, res) => {
     res.render('error', { title: 'Error', detail: `Page '${req.url}' not found.` });

@@ -536,7 +536,9 @@
 
             function updateHiddenInput() {
                 const ids = selectedSchools.map(s => s.Id);
+                // Store as a comma-separated string
                 hiddenInput.value = ids.join(',');
+                console.log('Hidden input value:', hiddenInput.value);
             }
 
             // Pressing Enter now auto-adds the first matched item from the filter

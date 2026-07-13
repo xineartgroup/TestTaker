@@ -1,0 +1,134 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="detail-ui content">
+        <h2><%= title %></h2>
+        
+        <div class="detail-section">
+            <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value"><%= school.Name %></span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Description:</span>
+                <span class="detail-value"><%= school.Description || 'N/A' %></span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Requires Invite:</span>
+                <span class="detail-value"><%= school.RequiresInvite ? 'Yes' : 'No' %></span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Date Created:</span>
+                <span class="detail-value"><%= school.DateCreated ? school.DateCreated.split('T')[0] : 'N/A' %></span>
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h3>Subjects</h3>
+            <% if (subjects && subjects.length > 0) { %>
+                <ul class="subject-list">
+                    <% subjects.forEach(subject => { %>
+                        <li><%= subject.Name %><% if (subject.Description) { %> - <span class="subject-description"><%= subject.Description %></span><% } %></li>
+                    <% }) %>
+                </ul>
+            <% } else { %>
+                <p class="no-data">No subjects assigned to this school.</p>
+            <% } %>
+        </div>
+
+        <div class="form-buttons">
+            <a href="/schools/update/<%= school.Id %>" class="btn btn-edit">Edit School</a>
+            <a href="/schools" class="cancel-button">Back to List</a>
+        </div>
+    </div>
+
+    <style>
+        .detail-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .detail-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .detail-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #2c3e50;
+            width: 150px;
+            flex-shrink: 0;
+        }
+        
+        .detail-value {
+            color: #495057;
+        }
+        
+        .subject-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .subject-list li {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .subject-list li:last-child {
+            margin-bottom: 0;
+        }
+        
+        .subject-description {
+            color: #6c757d;
+            font-size: 13px;
+        }
+        
+        .no-data {
+            color: #6c757d;
+            font-style: italic;
+            margin: 0;
+        }
+        
+        .btn-edit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+    </style>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

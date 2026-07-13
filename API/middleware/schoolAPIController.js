@@ -7,8 +7,6 @@ const router = express.Router();
 // Get all schools
 router.get("/", authenticateToken, async (req, res) => {
     try {
-        console.log("Fetching schools with query parameters:", req.query);
-        
         const { requiresInvite, searchValue } = req.query;
         const pool = await getPool();
         let request = pool.request();
@@ -16,8 +14,6 @@ router.get("/", authenticateToken, async (req, res) => {
         let query = "SELECT * FROM Schools";
         let conditions = [];
 
-        console.log("Query parameters:", { requiresInvite, searchValue });
-        
         if (requiresInvite !== undefined) {
             conditions.push("RequiresInvite = @requiresInvite");
             request.input('requiresInvite', requiresInvite === 'true' ? 1 : 0);

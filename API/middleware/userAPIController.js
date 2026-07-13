@@ -111,6 +111,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
 
 // Create a new user
 router.post("/create", authenticateToken, async (req, res) => {
+    let transaction = null;
+    
     try {
         const { UserName, Password, FirstName, LastName, Email, Role, PhoneNumber, IsActive, Schools } = req.body;
         let Picture = req.file ? req.file.filename : '';
@@ -133,83 +135,107 @@ router.post("/create", authenticateToken, async (req, res) => {
         const hashedPassword = await bcrypt.hash(Password, 10);
 
         // Start transaction
-        const transaction = pool.transaction();
+        transaction = pool.transaction();
         await transaction.begin();
 
-        try {
-            const result = await transaction.request()
-                .input('UserName', UserName)
-                .input('Password', hashedPassword)
-                .input('FirstName', FirstName)
-                .input('LastName', LastName)
-                .input('Email', Email)
-                .input('Role', Role || 'User')
-                .input('PhoneNumber', PhoneNumber)
-                .input('Picture', Picture)
-                .input('Token', '')
-                .input('IsActive', IsActive !== undefined ? IsActive : true)
-                .input('StartDate', new Date())
-                .query(`INSERT INTO Users 
-                    (UserName, Password, FirstName, LastName, Email, Role, PhoneNumber, Picture, Token, IsActive, StartDate) 
-                    OUTPUT INSERTED.ID VALUES 
-                    (@UserName, @Password, @FirstName, @LastName, @Email, @Role, @PhoneNumber, @Picture, @Token, @IsActive, @StartDate)`);
-            
-            const userId = result.recordset.length > 0 ? result.recordset[0].ID : 0;
+        const result = await transaction.request()
+            .input('UserName', UserName)
+            .input('Password', hashedPassword)
+            .input('FirstName', FirstName)
+            .input('LastName', LastName)
+            .input('Email', Email)
+            .input('Role', Role || 'User')
+            .input('PhoneNumber', PhoneNumber)
+            .input('Picture', Picture)
+            .input('Token', '')
+            .input('IsActive', IsActive !== undefined ? IsActive : true)
+            .input('StartDate', new Date())
+            .query(`INSERT INTO Users 
+                (UserName, Password, FirstName, LastName, Email, Role, PhoneNumber, Picture, Token, IsActive, StartDate) 
+                OUTPUT INSERTED.ID VALUES 
+                (@UserName, @Password, @FirstName, @LastName, @Email, @Role, @PhoneNumber, @Picture, @Token, @IsActive, @StartDate)`);
+        
+        const userId = result.recordset.length > 0 ? result.recordset[0].ID : 0;
 
-            // Assign schools if provided
-            if (Schools && userId > 0) {
-                let schoolIds = [];
-                if (Array.isArray(Schools)) {
-                    schoolIds = Schools;
-                } else if (typeof Schools === 'string' && Schools.includes(',')) {
-                    schoolIds = Schools.split(',').map(id => parseInt(id.trim()));
-                } else if (typeof Schools === 'string') {
-                    schoolIds = [parseInt(Schools)];
-                }
-
-                if (schoolIds.length > 0) {
-                    for (const schoolId of schoolIds) {
-                        await transaction.request()
-                            .input('userId', userId)
-                            .input('schoolId', schoolId)
-                            .query(`
-                                INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned)
-                                VALUES (@userId, @schoolId, GETDATE())
-                            `);
-                    }
-                }
+        // Assign schools if provided
+        if (Schools && userId > 0) {
+            let schoolIds = [];
+            if (Array.isArray(Schools)) {
+                schoolIds = Schools;
+            } else if (typeof Schools === 'string' && Schools.includes(',')) {
+                schoolIds = Schools.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            } else if (typeof Schools === 'string') {
+                schoolIds = [parseInt(Schools)].filter(id => !isNaN(id));
             }
 
-            await transaction.commit();
-
-            const createdUser = { 
-                Id: userId, 
-                UserName, 
-                FirstName, 
-                LastName, 
-                Email, 
-                Role: Role || 'User', 
-                PhoneNumber, 
-                Picture, 
-                IsActive: IsActive !== undefined ? IsActive : true,
-                StartDate: new Date()
-            };
-            
-            return res.json({ issuccess: true, message: "", count: 1, user: createdUser });
-
-        } catch (err) {
-            await transaction.rollback();
-            throw err;
+            if (schoolIds.length > 0) {
+                for (const schoolId of schoolIds) {
+                    if (isNaN(schoolId)) continue;
+                    
+                    await transaction.request()
+                        .input('userId', userId)
+                        .input('schoolId', schoolId)
+                        .query(`
+                            INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned)
+                            VALUES (@userId, @schoolId, GETDATE())
+                        `);
+                }
+            }
         }
 
+        await transaction.commit();
+
+        const createdUser = { 
+            Id: userId, 
+            UserName, 
+            FirstName, 
+            LastName, 
+            Email, 
+            Role: Role || 'User', 
+            PhoneNumber, 
+            Picture, 
+            IsActive: IsActive !== undefined ? IsActive : true,
+            StartDate: new Date()
+        };
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 1, 
+            user: createdUser 
+        });
+
     } catch (err) {
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, user: null });
+        // Rollback transaction if it was started and not committed
+        if (transaction) {
+            try {
+                await transaction.rollback();
+            } catch (rollbackErr) {
+                console.error('Error during rollback:', rollbackErr);
+            }
+        }
+        
+        console.error('Create user error:', err);
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            user: null 
+        });
     }
 });
 
 // Update an existing user
 router.post("/update/:id", authenticateToken, async (req, res) => {
+    let transaction = null;
+    
     try {
+        console.log('=== UPDATE USER START ===');
+        console.log('User ID:', req.params.id);
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('Schools value:', req.body.Schools);
+        console.log('Schools type:', typeof req.body.Schools);
+        
         const pool = await getPool();
 
         const resultUser = await pool.request()
@@ -221,6 +247,11 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
         }
 
         let user = resultUser.recordset[0];
+        console.log('Current user data:', { 
+            id: user.Id, 
+            username: user.UserName 
+        });
+
         const { FirstName, LastName, Email, PhoneNumber, IsActive, Role, Schools } = req.body;
 
         const permissionResult = checkPermission(['updateOwn', 'updateAny'], 'users', req.user);
@@ -228,6 +259,7 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
         if (!permissionResult.issuccess) {
             throw new Error(permissionResult.message);
         }
+        console.log('Permission granted');
 
         let Picture = req.body.Picture != null ? req.body.Picture : user.Picture;
         let token = req.body.Token != null ? req.body.Token : user.Token;
@@ -241,80 +273,193 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
         user.IsActive = isActive;
         user.Role = role;
 
+        console.log('Updated user data:', { 
+            FirstName: user.FirstName, 
+            LastName: user.LastName, 
+            Email: user.Email,
+            IsActive: user.IsActive,
+            Role: user.Role
+        });
+
         // Start transaction
-        const transaction = pool.transaction();
+        transaction = pool.transaction();
         await transaction.begin();
+        console.log('Transaction started');
 
-        try {
-            // Update user
-            await transaction.request()
-                .input('FirstName', user.FirstName)
-                .input('LastName', user.LastName)
-                .input('Email', user.Email)
-                .input('PhoneNumber', user.PhoneNumber)
-                .input('IsActive', user.IsActive)
-                .input('Role', user.Role)
-                .input('Picture', Picture)
-                .input('Token', token)
-                .input('id', user.Id)
-                .query(`UPDATE Users SET 
-                    FirstName = @FirstName, 
-                    LastName = @LastName, 
-                    Email = @Email, 
-                    PhoneNumber = @PhoneNumber, 
-                    IsActive = @IsActive, 
-                    Role = @Role, 
-                    Picture = @Picture, 
-                    Token = @Token 
-                WHERE ID = @id`);
+        // Update user
+        await transaction.request()
+            .input('FirstName', user.FirstName)
+            .input('LastName', user.LastName)
+            .input('Email', user.Email)
+            .input('PhoneNumber', user.PhoneNumber)
+            .input('IsActive', user.IsActive)
+            .input('Role', user.Role)
+            .input('Picture', Picture)
+            .input('Token', token)
+            .input('id', user.Id)
+            .query(`UPDATE Users SET 
+                FirstName = @FirstName, 
+                LastName = @LastName, 
+                Email = @Email, 
+                PhoneNumber = @PhoneNumber, 
+                IsActive = @IsActive, 
+                Role = @Role, 
+                Picture = @Picture, 
+                Token = @Token 
+            WHERE ID = @id`);
+        console.log('User updated successfully');
 
-            // Update schools if provided
-            if (Schools !== undefined) {
-                // Remove existing school assignments
-                await transaction.request()
-                    .input('userId', user.Id)
-                    .query("DELETE FROM UsersSchools WHERE UserId = @userId");
-
-                // Add new school assignments
-                let schoolIds = [];
-                if (Array.isArray(Schools)) {
-                    schoolIds = Schools;
-                } else if (typeof Schools === 'string' && Schools.includes(',')) {
-                    schoolIds = Schools.split(',').map(id => parseInt(id.trim()));
-                } else if (typeof Schools === 'string' && Schools !== '') {
-                    schoolIds = [parseInt(Schools)];
-                }
-
-                if (schoolIds.length > 0) {
-                    for (const schoolId of schoolIds) {
-                        await transaction.request()
-                            .input('userId', user.Id)
-                            .input('schoolId', schoolId)
-                            .query(`
-                                INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned)
-                                VALUES (@userId, @schoolId, GETDATE())
-                            `);
+        // Update schools if provided in the request
+        if (req.body.Schools !== undefined) {
+            console.log('Schools field is present in request');
+            
+            // Parse school IDs - handle multiple possible formats
+            let schoolIds = [];
+            
+            // If Schools is an array
+            if (Array.isArray(Schools)) {
+                console.log('Schools is an array:', Schools);
+                
+                // Process each element in the array
+                for (let item of Schools) {
+                    // If the item is a string that contains commas, split it
+                    if (typeof item === 'string' && item.includes(',')) {
+                        console.log('Splitting string with commas:', item);
+                        const parts = item.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                        schoolIds = schoolIds.concat(parts);
+                    } else if (typeof item === 'string' && item !== '') {
+                        // Single string value
+                        const parsed = parseInt(item);
+                        if (!isNaN(parsed)) {
+                            schoolIds.push(parsed);
+                        }
+                    } else if (typeof item === 'number' && !isNaN(item)) {
+                        // Already a number
+                        schoolIds.push(item);
                     }
                 }
+            } else if (typeof Schools === 'string' && Schools.includes(',')) {
+                // If it's a single string with commas
+                console.log('Schools is a comma-separated string:', Schools);
+                schoolIds = Schools.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            } else if (typeof Schools === 'string' && Schools !== '') {
+                // Single string
+                console.log('Schools is a single string:', Schools);
+                const parsed = parseInt(Schools);
+                if (!isNaN(parsed)) {
+                    schoolIds.push(parsed);
+                }
+            } else if (typeof Schools === 'number' && !isNaN(Schools)) {
+                // Single number
+                schoolIds.push(Schools);
             }
 
-            await transaction.commit();
+            console.log('Parsed school IDs:', schoolIds);
+            
+            // Remove duplicates (just in case)
+            schoolIds = [...new Set(schoolIds)];
+            console.log('Unique school IDs:', schoolIds);
 
-            delete user.Password;
-            return res.json({ issuccess: true, message: "", count: 1, user });
+            // Remove existing school assignments
+            console.log('Deleting existing school assignments for user:', user.Id);
+            const deleteResult = await transaction.request()
+                .input('userId', user.Id)
+                .query("DELETE FROM UsersSchools WHERE UserId = @userId");
+            console.log('Deleted assignments count:', deleteResult.rowsAffected);
 
-        } catch (err) {
-            await transaction.rollback();
-            throw err;
+            // Add new school assignments if there are any
+            if (schoolIds.length > 0) {
+                console.log('Adding', schoolIds.length, 'new school assignments');
+                for (const schoolId of schoolIds) {
+                    if (isNaN(schoolId)) {
+                        console.log('Skipping invalid school ID:', schoolId);
+                        continue;
+                    }
+                    
+                    console.log('Adding school ID:', schoolId);
+                    await transaction.request()
+                        .input('userId', user.Id)
+                        .input('schoolId', schoolId)
+                        .query(`
+                            INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned)
+                            VALUES (@userId, @schoolId, GETDATE())
+                        `);
+                }
+                console.log('All school assignments added successfully');
+            } else {
+                console.log('No valid schools to add - all assignments removed');
+            }
+        } else {
+            console.log('Schools field NOT present in request - keeping existing assignments');
         }
 
+        // Commit the transaction
+        console.log('Committing transaction...');
+        await transaction.commit();
+        console.log('Transaction committed successfully');
+        
+        // Get the updated user with their schools
+        console.log('Fetching updated user data...');
+        const updatedUser = await pool.request()
+            .input("id", req.params.id)
+            .query("SELECT * FROM Users WHERE id = @id");
+
+        // Get user's schools
+        const schoolsResult = await pool.request()
+            .input('userId', req.params.id)
+            .query(`
+                SELECT s.Id, s.Name, s.Description, s.RequiresInvite
+                FROM Schools s
+                JOIN UsersSchools us ON s.Id = us.SchoolId
+                WHERE us.UserId = @userId
+                ORDER BY s.Name
+            `);
+
+        console.log('User schools after update:', schoolsResult.recordset.length, 'schools');
+        console.log('=== UPDATE USER END ===');
+
+        const finalUser = updatedUser.recordset[0];
+        delete finalUser.Password;
+        
+        // Add schools to the user object
+        finalUser.Schools = schoolsResult.recordset;
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 1, 
+            user: finalUser 
+        });
+
     } catch (err) {
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, user: null });
+        console.error('=== UPDATE USER ERROR ===');
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+        
+        // Rollback transaction if it was started and not committed
+        if (transaction) {
+            try {
+                console.log('Rolling back transaction...');
+                await transaction.rollback();
+                console.log('Transaction rolled back successfully');
+            } catch (rollbackErr) {
+                console.error('Error during rollback:', rollbackErr);
+            }
+        }
+        
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            user: null 
+        });
     }
 });
 
 // Delete a user
 router.post("/delete/:id", authenticateToken, async (req, res) => {
+    let transaction = null;
+    
     try {
         const pool = await getPool();
 
@@ -333,31 +478,45 @@ router.post("/delete/:id", authenticateToken, async (req, res) => {
         }
 
         // Start transaction
-        const transaction = pool.transaction();
+        transaction = pool.transaction();
         await transaction.begin();
 
-        try {
-            // Delete user's school assignments (cascade will handle this, but explicit is safer)
-            await transaction.request()
-                .input("id", req.params.id)
-                .query("DELETE FROM UsersSchools WHERE UserId = @id");
+        // Delete user's school assignments
+        await transaction.request()
+            .input("id", req.params.id)
+            .query("DELETE FROM UsersSchools WHERE UserId = @id");
 
-            // Delete user
-            await transaction.request()
-                .input("id", req.params.id)
-                .query("DELETE FROM Users WHERE id = @id");
+        // Delete user
+        await transaction.request()
+            .input("id", req.params.id)
+            .query("DELETE FROM Users WHERE id = @id");
 
-            await transaction.commit();
-            
-            return res.json({ issuccess: true, message: "", count: 0, user: null });
-
-        } catch (err) {
-            await transaction.rollback();
-            throw err;
-        }
+        await transaction.commit();
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 0, 
+            user: null 
+        });
 
     } catch (err) {
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, user: null });
+        // Rollback transaction if it was started and not committed
+        if (transaction) {
+            try {
+                await transaction.rollback();
+            } catch (rollbackErr) {
+                console.error('Error during rollback:', rollbackErr);
+            }
+        }
+        
+        console.error('Delete user error:', err);
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            user: null 
+        });
     }
 });
 
@@ -406,10 +565,21 @@ router.post('/changepassword/:id', authenticateToken, async (req, res) => {
             .query(`UPDATE Users SET Password = @Password WHERE ID = @id`);
 
         delete user.Password;
-        return res.json({ issuccess: true, message: "Password changed successfully", count: 1, user });
+        return res.json({ 
+            issuccess: true, 
+            message: "Password changed successfully", 
+            count: 1, 
+            user 
+        });
 
     } catch (err) {
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, user: null });
+        console.error('Change password error:', err);
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            user: null 
+        });
     }
 });
 
