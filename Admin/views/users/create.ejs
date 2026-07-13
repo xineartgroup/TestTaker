@@ -1,0 +1,534 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="detail-ui content">
+        <h2><%= title %></h2>
+        
+        <% if (error) { %>
+            <div class="error-message"><%= error %></div>
+        <% } %>
+
+        <form action="/users/create" method="POST" enctype="multipart/form-data" id="userForm">
+            <div class="form-group">
+                <label for="UserName">Username:</label>
+                <input type="text" id="UserName" name="UserName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Password">Password:</label>
+                <input type="text" id="Password" name="Password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="FirstName">First Name:</label>
+                <input type="text" id="FirstName" name="FirstName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="LastName">Last Name:</label>
+                <input type="text" id="LastName" name="LastName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Email">Email:</label>
+                <input type="email" id="Email" name="Email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="PhoneNumber">Phone Number:</label>
+                <input type="text" id="PhoneNumber" name="PhoneNumber">
+            </div>
+
+            <div class="form-group">
+                <label for="Picture">Upload Picture:</label>
+                <input type="file" id="Picture" name="Picture" accept="image/*">
+            </div>
+
+            <div class="form-group">
+                <label for="IsActive">Active:</label>
+                <select id="IsActive" name="IsActive">
+                    <option value="true">Yes</option>
+                    <option value="false" selected>No</option>
+                </select>
+            </div>
+
+            <!-- Schools Selection -->
+            <div class="form-group">
+                <label>Schools:</label>
+                <div class="school-selector">
+                    <div id="schoolData" data-all-schools='<%= JSON.stringify(schools || []) %>'></div>
+                    
+                    <div class="school-search-wrapper">
+                        <div class="school-search">
+                            <input type="text" id="schoolSearch" placeholder="Search for schools..." class="school-search-input">
+                        </div>
+                        <div class="school-search-results" id="schoolSearchResults"></div>
+                    </div>
+                    
+                    <div class="selected-schools">
+                        <div class="selected-header">
+                            <span class="selected-title">Selected Schools</span>
+                            <span class="selected-count" id="selectedCount">0</span>
+                        </div>
+                        <div id="selectedSchoolsList" class="selected-schools-list">
+                            <div class="empty-message">No schools selected</div>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" id="Schools" name="Schools" value="">
+                    <span class="hint">Type to search for schools, then click a search result to add it.</span>
+                </div>
+            </div>
+
+            <div class="form-buttons">
+                <button type="submit">Create User</button>
+                <a href="/users" class="cancel-button">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <style>
+        .hint {
+            display: block;
+            margin-top: 5px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        input[readonly] {
+            background-color: #e9ecef !important;
+            cursor: not-allowed;
+        }
+        
+        .image-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .image-container img {
+            border: 3px solid #ddd;
+            padding: 5px;
+        }
+
+        /* School Selector Styles - Forced Overrides */
+        .school-selector {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            display: block !important;
+        }
+
+        .school-search-wrapper {
+            margin-bottom: 15px;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            display: block !important;
+        }
+
+        .school-search {
+            display: flex !important;
+            gap: 8px;
+            align-items: center;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .school-search-input {
+            flex: 1 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: #fafafa;
+            box-sizing: border-box !important;
+        }
+
+        .school-search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .school-search-input::placeholder {
+            color: #adb5bd;
+        }
+
+        .school-search-results {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            margin-top: -2px;
+            display: none;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .school-search-results.show {
+            display: block !important;
+        }
+
+        .school-search-result-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box !important;
+            width: 100% !important;
+        }
+
+        .school-search-result-item:hover {
+            background: #f0f4ff;
+        }
+
+        .school-search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .school-search-result-item .school-name {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .school-search-result-item .school-description {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .school-search-result-item .add-hint {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .no-results {
+            padding: 15px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .selected-schools {
+            margin-top: 5px;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .selected-header {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .selected-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .selected-count {
+            font-size: 12px;
+            color: #6c757d;
+            background: #f0f0f0;
+            padding: 2px 10px;
+            border-radius: 12px;
+        }
+
+        .selected-schools-list {
+            display: flex !important;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 8px;
+            background: #fafafa;
+            min-height: 50px;
+            transition: all 0.3s;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .selected-schools-list:focus-within {
+            border-color: #667eea;
+        }
+
+        .selected-schools-list .empty-message {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            color: #adb5bd;
+            font-size: 14px;
+            width: 100% !important;
+            height: 100%;
+            min-height: 34px;
+        }
+
+        .selected-school-item {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s;
+            animation: slideIn 0.3s ease;
+            box-sizing: border-box !important;
+            width: 100% !important;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .selected-school-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .selected-school-item .school-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .selected-school-item .school-info .name {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .selected-school-item .school-info .description {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .btn-remove-school {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+            transition: all 0.2s;
+            margin: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box !important;
+        }
+
+        .btn-remove-school:hover {
+            color: #c82333;
+            background: rgba(220, 53, 69, 0.1);
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .school-selector {
+                width: 100% !important;
+            }
+
+            .school-search {
+                flex-direction: column !important;
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const schoolData = document.getElementById('schoolData');
+            
+            let allAvailableSchools = [];
+            
+            try {
+                allAvailableSchools = JSON.parse(schoolData.dataset.allSchools || '[]');
+            } catch (e) {
+                console.error('Error parsing school data:', e);
+            }
+
+            console.log('All Available Schools:', allAvailableSchools);
+
+            let allSchools = allAvailableSchools;
+            let selectedSchools = [];
+            let searchTimeout = null;
+
+            const searchInput = document.getElementById('schoolSearch');
+            const searchResults = document.getElementById('schoolSearchResults');
+            const selectedList = document.getElementById('selectedSchoolsList');
+            const hiddenInput = document.getElementById('Schools');
+
+            // If no schools were passed, fetch them
+            if (allSchools.length === 0) {
+                fetch('/api/schools?requiresInvite=false')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.issuccess) {
+                            allSchools = data.schools;
+                            updateSelectedList();
+                            updateHiddenInput();
+                        }
+                    })
+                    .catch(err => console.error('Error fetching schools:', err));
+            }
+
+            // Search functionality
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim().toLowerCase();
+                
+                clearTimeout(searchTimeout);
+                
+                if (query.length === 0) {
+                    searchResults.classList.remove('show');
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    const filtered = allSchools.filter(school => 
+                        school.Name.toLowerCase().includes(query) &&
+                        !selectedSchools.some(s => s.Id === school.Id)
+                    );
+
+                    renderSearchResults(filtered);
+                    searchResults.classList.add('show');
+                }, 300);
+            });
+
+            // Close search results on outside click
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.school-search-wrapper')) {
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            function renderSearchResults(schools) {
+                if (schools.length === 0) {
+                    searchResults.innerHTML = '<div class="no-results">No schools found</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = schools.map(school => `
+                    <div class="school-search-result-item" data-id="${school.Id}">
+                        <span class="school-name">${school.Name}</span>
+                        ${school.Description ? `<span class="school-description">${school.Description}</span>` : ''}
+                    </div>
+                `).join('');
+
+                searchResults.querySelectorAll('.school-search-result-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        const school = allSchools.find(s => s.Id === id);
+                        if (school) {
+                            addSchool(school);
+                            searchInput.value = '';
+                            searchResults.classList.remove('show');
+                        }
+                    });
+                });
+            }
+
+            function addSchool(school) {
+                if (selectedSchools.some(s => s.Id === school.Id)) return;
+                selectedSchools.push(school);
+                updateSelectedList();
+                updateHiddenInput();
+            }
+
+            function removeSchool(schoolId) {
+                selectedSchools = selectedSchools.filter(s => s.Id !== schoolId);
+                updateSelectedList();
+                updateHiddenInput();
+            }
+
+            function updateSelectedList() {
+                const countEl = document.getElementById('selectedCount');
+                if (countEl) countEl.textContent = selectedSchools.length;
+
+                if (selectedSchools.length === 0) {
+                    selectedList.innerHTML = '<div class="empty-message">No schools selected</div>';
+                    return;
+                }
+
+                selectedList.innerHTML = selectedSchools.map(school => `
+                    <div class="selected-school-item">
+                        <div class="school-info">
+                            <span class="name">${school.Name}</span>
+                            ${school.Description ? `<span class="description">${school.Description}</span>` : ''}
+                        </div>
+                        <button type="button" class="btn-remove-school" data-id="${school.Id}">×</button>
+                    </div>
+                `).join('');
+
+                selectedList.querySelectorAll('.btn-remove-school').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        removeSchool(id);
+                    });
+                });
+            }
+
+            function updateHiddenInput() {
+                const ids = selectedSchools.map(s => s.Id);
+                hiddenInput.value = ids.join(',');
+                console.log('Hidden input updated with:', hiddenInput.value);
+            }
+
+            // Pressing Enter adds the first matched school
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const query = this.value.trim().toLowerCase();
+                    if (query.length === 0) return;
+
+                    const matches = allSchools.filter(school => 
+                        school.Name.toLowerCase().includes(query) &&
+                        !selectedSchools.some(s => s.Id === school.Id)
+                    );
+
+                    if (matches.length > 0) {
+                        addSchool(matches[0]);
+                        this.value = '';
+                        searchResults.classList.remove('show');
+                    }
+                }
+            });
+
+            // Initialize
+            if (allSchools.length > 0) {
+                updateSelectedList();
+                updateHiddenInput();
+            }
+        });
+    </script>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

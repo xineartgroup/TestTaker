@@ -1,0 +1,28 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('./partials/header.ejs') %>
+<body>
+    <%- include('./partials/nav.ejs') %>
+            
+    <div class="detail-ui content">
+        <h2>Error</h2>
+        
+        <% if (error) { %>
+            <div class="error-message"><%= error %></div>
+        <% } %>
+
+        <div>
+            <div style="text-align: center; margin-bottom: 20px; padding: 10px;">
+                <p>You have reached this page because you encountered a fatal error.</p>
+                <p>You can use the <strong>BACK</strong> button to go back and retry, if it is a network error.</p>
+                <p>Otherwise, contact your systems administrator.</p>
+                <p>Below, is the detail of the error.</p>
+                <P></P>
+            </div>
+            <% if (detail) { %>
+                <div class="error-message"><%= detail %></div>
+            <% } %>
+        </div>
+    </div>
+</body>
+<%- include('./partials/footer.ejs') %>
+</html>

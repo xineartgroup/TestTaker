@@ -1,0 +1,99 @@
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="table-container">
+        <h2>Schools</h2>
+        <form action="/schools" method="GET">
+            <div class="form-search">
+                <input type="text" id="searchValue" name="searchValue" placeholder="Search" value="<%= searchValue ? searchValue : '' %>">
+                <select name="requiresInvite" id="requiresInvite">
+                    <option value="">All Schools</option>
+                    <option value="false" <%= requiresInvite === 'false' ? 'selected' : '' %>>No Invite Required</option>
+                    <option value="true" <%= requiresInvite === 'true' ? 'selected' : '' %>>Requires Invite</option>
+                </select>
+                <button type="submit">
+                    <img src="/images/search-icon.png" alt="Search">
+                </button>
+            </div>
+        </form>
+        
+        <% if (schools && schools.length > 0) { %>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th><a href="#" onclick="sortTable(event, 'Name')">Name</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'Description')">Description</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'RequiresInvite')">Requires Invite</a></th>
+                        <th><a href="#" onclick="sortTable(event, 'DateCreated')">Date Created</a></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% schools.forEach(school => { %>
+                        <tr>
+                            <td>
+                                <a href="/schools/detail/<%= school.Id %>">
+                                    <%= school.Name %>
+                                </a>
+                            </td>
+                            <td><%= school.Description || 'N/A' %></td>
+                            <td><%= school.RequiresInvite ? "Yes" : "No" %></td>
+                            <td><%= school.DateCreated ? school.DateCreated.split('T')[0] : 'N/A' %></td>
+                            <td>
+                                <a class="delete" href="/schools/delete/<%= school.Id %>">
+                                    <img src="/images/delete-icon.png" alt="Delete" width="20" height="20">
+                                </a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <div class="no-results">
+                <p>No schools found</p>
+            </div>
+        <% } %>
+    </div>
+    
+    <%- include('../partials/pagination') %>
+    
+    <div class="row pb-3">
+        <div class="col-6 text-end">
+            <a href="/schools/create" class="btn">Create School</a>
+        </div>
+    </div>
+
+    <script>
+        function sortTable(event, column) {
+            event.preventDefault();
+            const currentUrl = new URL(window.location.href);
+            const currentSort = currentUrl.searchParams.get('sortName');
+            const currentOrder = currentUrl.searchParams.get('sortOrder') || 'asc';
+            
+            let newOrder = 'asc';
+            if (currentSort === column) {
+                newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            }
+            
+            currentUrl.searchParams.set('sortName', column);
+            currentUrl.searchParams.set('sortOrder', newOrder);
+            window.location.href = currentUrl.toString();
+        }
+
+        // Add keyboard support for search
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchValue');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        this.closest('form').submit();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

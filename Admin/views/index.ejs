@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html xmlns="https://xineartsolutions.com">
+<%- include('./partials/header.ejs') %>
+<body>
+    <%- include('./partials/nav.ejs') %>
+
+    <div class="dashboard-container">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <div class="welcome-card">
+                <div class="welcome-icon">👋</div>
+                <div class="welcome-content">
+                    <h1>Welcome back, <%= session.user.FirstName %> <%= session.user.LastName %>!</h1>
+                    <p>Ready to continue your learning journey? Browse the available exams below.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form action="/" method="GET" class="search-form">
+                <div class="search-wrapper">
+                    <input type="text" id="searchValue" name="searchValue" placeholder="Search for exams..." value="<%= searchValue ? searchValue : '' %>" class="search-input">
+                    <button type="submit" class="search-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Exams Section -->
+        <div class="exams-section">
+            <div class="section-header">
+                <h2>Available Exams</h2>
+                <span class="exam-count"><%= typeof exams !== 'undefined' ? exams.length : 0 %> exams</span>
+            </div>
+
+            <% if (session.user) { %>
+                <% if (typeof exams !== 'undefined' && exams.length > 0) { %>
+                    <div class="exams-grid">
+                        <% exams.forEach(exam => { %>
+                            <div class="exam-card">
+                                <div class="exam-card-header">
+                                    <h3 class="exam-title"><%= exam.Name %></h3>
+                                    <span class="exam-type"><%= exam.QuestionType || 'Multiple Choice' %></span>
+                                </div>
+                                <div class="exam-card-body">
+                                    <div class="exam-meta">
+                                        <div class="meta-item">
+                                            <span class="meta-icon">📝</span>
+                                            <span class="meta-label">Questions</span>
+                                            <span class="meta-value"><%= exam.QuestionCount || 0 %></span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-icon">⏱️</span>
+                                            <span class="meta-label">Duration</span>
+                                            <span class="meta-value"><%= exam.Length || 0 %> mins</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="exam-card-footer">
+                                    <a href="/exams/take/<%= exam.Id %>" class="btn-take-exam">
+                                        Start Exam
+                                        <span class="btn-arrow">→</span>
+                                    </a>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <h3>No Exams Available</h3>
+                        <p>There are no exams available for your schools at this time. Please check back later.</p>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <div class="empty-state">
+                    <div class="empty-icon">🔒</div>
+                    <h3>Please Login</h3>
+                    <p>Welcome to the Exam Management System. Please <a href="/login">login</a> to continue.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <style>
+        /* Container */
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            margin-bottom: 30px;
+        }
+
+        .welcome-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 30px 35px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .welcome-icon {
+            font-size: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-content h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            font-weight: 600;
+        }
+
+        .welcome-content p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        /* Search Section */
+        .search-section {
+            margin-bottom: 30px;
+        }
+
+        .search-form {
+            width: 100%;
+        }
+
+        .search-wrapper {
+            position: relative;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 55px 14px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            color: #2c3e50;
+            height: 54px;
+            box-sizing: border-box;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #adb5bd;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            color: #6c757d;
+            border-radius: 8px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            margin: 0;
+        }
+
+        .search-btn:hover {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn svg {
+            display: block;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Exams Section */
+        .exams-section {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e9ecef;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f5;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .exam-count {
+            color: #6c757d;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 4px 14px;
+            border-radius: 20px;
+        }
+
+        /* Exam Grid */
+        .exams-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .exam-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+
+        .exam-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border-color: #667eea;
+        }
+
+        .exam-card-header {
+            padding: 18px 20px 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .exam-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.3;
+            flex: 1;
+        }
+
+        .exam-type {
+            font-size: 11px;
+            font-weight: 600;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 3px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .exam-card-body {
+            padding: 10px 20px 15px 20px;
+        }
+
+        .exam-meta {
+            display: flex;
+            gap: 20px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-icon {
+            font-size: 16px;
+        }
+
+        .meta-label {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .meta-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .exam-card-footer {
+            padding: 12px 20px 18px 20px;
+            border-top: 1px solid #e9ecef;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-take-exam {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s;
+            width: 100%;
+            max-width: 200px;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .btn-take-exam:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+
+        .btn-arrow {
+            transition: transform 0.3s;
+        }
+
+        .btn-take-exam:hover .btn-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin: 0 0 10px 0;
+        }
+
+        .empty-state p {
+            color: #6c757d;
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .empty-state a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .empty-state a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                margin: 20px auto;
+            }
+
+            .welcome-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 25px 20px;
+            }
+
+            .welcome-content h1 {
+                font-size: 20px;
+            }
+
+            .welcome-content p {
+                font-size: 14px;
+            }
+
+            .exams-section {
+                padding: 20px 15px;
+            }
+
+            .exams-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-wrapper {
+                max-width: 100%;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .exam-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .welcome-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 32px;
+            }
+
+            .exam-meta {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</body>
+<%- include('./partials/footer.ejs') %>
+</html>
