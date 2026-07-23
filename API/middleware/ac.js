@@ -37,8 +37,8 @@ ac.grant('User')
   .readOwn('exam_taking')      // View their own exam results
   .deleteOwn('exam_taking')    // Clear exam session
 
-// Administrator Role - Full access to everything
-ac.grant('Administrator')
+// Admin Role - Full access to everything
+ac.grant('Admin')
   .extend('User')
   // User management
   .readAny('users')

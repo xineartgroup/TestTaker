@@ -77,7 +77,7 @@
                         </button>
                         <ul class="user-dropdown-menu" id="userDropdownMenu">
                             <li>
-                                <a href="/users/profile" class="dropdown-item">
+                                <a href="/users/update/<%= session.user ? session.user.Id : '0' %>" class="dropdown-item">
                                     <span class="dropdown-icon">👤</span>
                                     My Profile
                                 </a>
