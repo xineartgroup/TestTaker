@@ -21,26 +21,29 @@
                         <span class="nav-text">My Scores</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="/users/update/<%= session.user ? session.user.Id : '0' %>" class="nav-link">
-                        <span class="nav-icon">👤</span>
-                        <span class="nav-text">My Profile</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="/users/changepassword" class="nav-link">
-                        <span class="nav-icon">🔒</span>
-                        <span class="nav-text">Change Password</span>
-                    </a>
-                </li>
                 <li class="nav-item nav-item-divider"></li>
-                <li class="nav-item nav-item-user">
-                    <div class="user-profile">
+                <li class="nav-item nav-item-user dropdown">
+                    <div class="user-profile dropdown-toggle" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="user-avatar">
                             <%= session.user.FirstName ? session.user.FirstName.charAt(0) : 'U' %><%= session.user.LastName ? session.user.LastName.charAt(0) : 'R' %>
                         </span>
                         <span class="user-name"><%= session.user.FirstName %> <%= session.user.LastName %></span>
+                        <span class="dropdown-arrow">▾</span>
                     </div>
+                    <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                        <li>
+                            <a href="/users/update/<%= session.user ? session.user.Id : '0' %>" class="dropdown-item">
+                                <span class="nav-icon">👤</span>
+                                <span class="nav-text">My Profile</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/users/changepassword" class="dropdown-item">
+                                <span class="nav-icon">🔒</span>
+                                <span class="nav-text">Change Password</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
                 <li class="nav-item nav-item-divider"></li>
                 <li class="nav-item">
@@ -84,6 +87,31 @@
                 link.addEventListener('click', function() {
                     navToggle.classList.remove('active');
                     navMenu.classList.remove('open');
+                });
+            });
+        }
+
+        // Dropdown toggle functionality
+        const dropdownToggle = document.querySelector('.dropdown-toggle');
+        const dropdownMenu = document.querySelector('.dropdown-menu');
+
+        if (dropdownToggle && dropdownMenu) {
+            dropdownToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.classList.remove('show');
+                }
+            });
+
+            // Close dropdown when clicking a dropdown item
+            dropdownMenu.querySelectorAll('.dropdown-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    dropdownMenu.classList.remove('show');
                 });
             });
         }

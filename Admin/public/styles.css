@@ -1331,6 +1331,9 @@ form {
     margin-top: 20px;
 }
 
+/* ============================================
+   LOGIN STYLES
+   ============================================ */
 .login-container {
     background: white;
     padding: 40px;
@@ -1344,6 +1347,99 @@ form {
     margin-right: auto;
 }
 
+.login-container h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+.login-container .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.login-container .form-group label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.login-container .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.login-container .form-group input:focus {
+    outline: none;
+    border-color: #c2a291;
+}
+
+.login-container .form-buttons {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.login-container .form-buttons button {
+    padding: 10px 30px;
+    background-color: #c2a291;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+    width: 100%;
+}
+
+.login-container .form-buttons button:hover {
+    background-color: #a88c7e;
+}
+
+.login-container .form-links {
+    margin-top: 20px;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+
+.login-container .form-links p {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.login-container .form-links a {
+    color: #c2a291;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-container .form-links a:hover {
+    color: #a88c7e;
+    text-decoration: underline;
+}
+
+.login-container .error-message {
+    color: red;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.login-container .info-message {
+    color: blue;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+/* ============================================
+   REGISTER STYLES
+   ============================================ */
 .register-container {
     width: 100%;
     max-width: 700px;
@@ -1357,6 +1453,98 @@ form {
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
+.register-container h2 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.register-container .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.register-container .form-group label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.register-container .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.register-container .form-group input:focus {
+    outline: none;
+    border-color: #c2a291;
+}
+
+.register-container .form-buttons {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.register-container .form-buttons button {
+    padding: 10px 30px;
+    background-color: #c2a291;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+    width: 100%;
+}
+
+.register-container .form-buttons button:hover {
+    background-color: #a88c7e;
+}
+
+.register-container .form-links {
+    margin-top: 20px;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+
+.register-container .form-links p {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.register-container .form-links a {
+    color: #c2a291;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.register-container .form-links a:hover {
+    color: #a88c7e;
+    text-decoration: underline;
+}
+
+.register-container .error-message {
+    color: red;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.register-container .info-message {
+    color: blue;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+/* ============================================
+   EXISTING STYLES (Keep as is)
+   ============================================ */
 h2 {
     text-align: center;
 }
