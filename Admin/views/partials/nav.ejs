@@ -3,7 +3,7 @@
         <div class="nav-brand">
             <a href="/" class="brand-link">
                 <span class="brand-icon">📝</span>
-                <span class="brand-text">Test Taker</span>
+                <span class="brand-text">Test Taker Admin</span>
             </a>
         </div>
         
@@ -15,49 +15,93 @@
 
         <ul class="nav-menu" id="navMenu">
             <% if (session && session.isLoggedIn) { %>
-                <li class="nav-item">
-                    <a href="/answers/my-scores" class="nav-link">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-text">My Scores</span>
-                    </a>
-                </li>
-                <% if (session.userRole === 'Administrator' || session.userRole === 'Manager') { %>
-                    <li class="nav-item">
-                        <a href="/admin" class="nav-link">
+                <!-- ADMIN SECTION - Dropdown -->
+                <% if (session.user.Role === 'Admin') { %>
+                    <li class="nav-item nav-item-divider"></li>
+                    <li class="nav-item nav-item-dropdown">
+                        <button class="nav-dropdown-toggle" id="adminDropdownToggle" aria-haspopup="true" aria-expanded="false">
                             <span class="nav-icon">⚙️</span>
-                            <span class="nav-text">Admin</span>
-                        </a>
+                            <span class="nav-text">Administration</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <ul class="nav-dropdown-menu" id="adminDropdownMenu">
+                            <li>
+                                <a href="/users" class="dropdown-item">
+                                    <span class="dropdown-icon">👥</span>
+                                    Users
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/subjects" class="dropdown-item">
+                                    <span class="dropdown-icon">📚</span>
+                                    Subjects
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 <% } %>
-                <li class="nav-item">
-                    <a href="/users/update/<%= session.user ? session.user.Id : '0' %>" class="nav-link">
-                        <span class="nav-icon">👤</span>
-                        <span class="nav-text">My Profile</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="/users/changepassword" class="nav-link">
-                        <span class="nav-icon">🔒</span>
-                        <span class="nav-text">Change Password</span>
-                    </a>
-                </li>
+
+                <!-- TEACHER SECTION - Dropdown -->
+                <% if (session.user.Role === 'Teacher') { %>
+                    <li class="nav-item nav-item-divider"></li>
+                    <li class="nav-item nav-item-dropdown">
+                        <button class="nav-dropdown-toggle" id="teacherDropdownToggle" aria-haspopup="true" aria-expanded="false">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-text">Teaching</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <ul class="nav-dropdown-menu" id="teacherDropdownMenu">
+                            <li>
+                                <a href="/questions" class="dropdown-item">
+                                    <span class="dropdown-icon">❓</span>
+                                    Questions
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                <% } %>
+
+                <!-- User Profile Dropdown -->
                 <li class="nav-item nav-item-divider"></li>
                 <li class="nav-item nav-item-user">
-                    <div class="user-profile">
-                        <span class="user-avatar">
-                            <%= session.user.FirstName ? session.user.FirstName.charAt(0) : 'U' %><%= session.user.LastName ? session.user.LastName.charAt(0) : 'R' %>
-                        </span>
-                        <span class="user-name"><%= session.user.FirstName %> <%= session.user.LastName %></span>
+                    <div class="user-dropdown">
+                        <button class="user-dropdown-toggle" id="userDropdownToggle" aria-haspopup="true" aria-expanded="false">
+                            <span class="user-avatar">
+                                <%= session.user.FirstName ? session.user.FirstName.charAt(0) : 'U' %><%= session.user.LastName ? session.user.LastName.charAt(0) : 'R' %>
+                            </span>
+                            <span class="user-info">
+                                <span class="user-name"><%= session.user.FirstName %> <%= session.user.LastName %></span>
+                                <span class="user-role"><%= session.user.Role || 'User' %></span>
+                            </span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <ul class="user-dropdown-menu" id="userDropdownMenu">
+                            <li>
+                                <a href="/users/profile" class="dropdown-item">
+                                    <span class="dropdown-icon">👤</span>
+                                    My Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/users/changepassword" class="dropdown-item">
+                                    <span class="dropdown-icon">🔒</span>
+                                    Change Password
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </li>
+                
+                <!-- Logout -->
                 <li class="nav-item nav-item-divider"></li>
-                <li class="nav-item">
-                    <a href="/logout" class="nav-link nav-link-logout">
-                        <span class="nav-icon">🚪</span>
-                        <span class="nav-text">Logout</span>
+                <li class="nav-item nav-item-logout">
+                    <a href="/logout" class="dropdown-item dropdown-item-danger">
+                        <span class="dropdown-icon">🚪</span>
+                        Logout
                     </a>
                 </li>
             <% } else { %>
+                <!-- Guest Navigation -->
                 <li class="nav-item">
                     <a href="/login" class="nav-link">
                         <span class="nav-icon">🔑</span>
@@ -75,352 +119,26 @@
     </div>
 </nav>
 
-<style>
-    /* Main Navigation */
-    .main-nav {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 0;
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        box-shadow: 0 2px 20px rgba(102, 126, 234, 0.3);
-    }
-
-    .nav-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 70px;
-    }
-
-    /* Brand */
-    .nav-brand {
-        flex-shrink: 0;
-    }
-
-    .brand-link {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-decoration: none;
-        color: white;
-        font-size: 22px;
-        font-weight: 700;
-        transition: transform 0.3s;
-    }
-
-    .brand-link:hover {
-        transform: scale(1.02);
-        color: white;
-        text-decoration: none;
-    }
-
-    .brand-icon {
-        font-size: 28px;
-    }
-
-    .brand-text {
-        letter-spacing: -0.5px;
-    }
-
-    /* Navigation Menu */
-    .nav-menu {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .nav-item {
-        position: relative;
-    }
-
-    .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        color: rgba(255, 255, 255, 0.8);
-        text-decoration: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.3s;
-        white-space: nowrap;
-    }
-
-    .nav-link:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.15);
-        text-decoration: none;
-    }
-
-    .nav-icon {
-        font-size: 18px;
-    }
-
-    .nav-text {
-        display: inline;
-    }
-
-    /* Divider */
-    .nav-item-divider {
-        width: 1px;
-        height: 30px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 0 8px;
-    }
-
-    /* User Profile */
-    .nav-item-user {
-        padding: 4px 8px;
-    }
-
-    .user-profile {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 12px 4px 4px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        transition: all 0.3s;
-    }
-
-    .user-profile:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-
-    .user-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.25);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 14px;
-        text-transform: uppercase;
-        flex-shrink: 0;
-    }
-
-    .user-name {
-        color: white;
-        font-weight: 500;
-        font-size: 14px;
-    }
-
-    .user-role {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 11px;
-        font-weight: 400;
-        background: rgba(255, 255, 255, 0.1);
-        padding: 2px 10px;
-        border-radius: 20px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Logout Link */
-    .nav-link-logout {
-        color: rgba(255, 255, 255, 0.7);
-    }
-
-    .nav-link-logout:hover {
-        color: #ff6b6b;
-        background: rgba(255, 107, 107, 0.2);
-    }
-
-    /* Register Link */
-    .nav-link-register {
-        background: rgba(255, 255, 255, 0.15);
-        color: white;
-    }
-
-    .nav-link-register:hover {
-        background: rgba(255, 255, 255, 0.25);
-        color: white;
-    }
-
-    /* Hamburger Menu (Mobile) */
-    .nav-toggle {
-        display: none;
-        flex-direction: column;
-        gap: 5px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 8px;
-        transition: background 0.3s;
-    }
-
-    .nav-toggle:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .hamburger {
-        width: 25px;
-        height: 3px;
-        background: white;
-        border-radius: 3px;
-        transition: all 0.3s;
-        display: block;
-    }
-
-    .nav-toggle.active .hamburger:nth-child(1) {
-        transform: rotate(45deg) translate(5px, 6px);
-    }
-
-    .nav-toggle.active .hamburger:nth-child(2) {
-        opacity: 0;
-    }
-
-    .nav-toggle.active .hamburger:nth-child(3) {
-        transform: rotate(-45deg) translate(5px, -6px);
-    }
-
-    /* Mobile Responsive */
-    @media (max-width: 992px) {
-        .nav-container {
-            height: 60px;
-        }
-
-        .nav-text {
-            display: none;
-        }
-
-        .nav-link {
-            padding: 8px 12px;
-        }
-
-        .user-name {
-            display: none;
-        }
-
-        .user-role {
-            display: none;
-        }
-
-        .user-profile {
-            padding: 4px;
-        }
-
-        .nav-item-divider {
-            margin: 0 4px;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .nav-toggle {
-            display: flex;
-        }
-
-        .nav-menu {
-            display: none;
-            flex-direction: column;
-            position: absolute;
-            top: 60px;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 16px 20px;
-            gap: 4px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .nav-menu.open {
-            display: flex;
-        }
-
-        .nav-link {
-            padding: 12px 16px;
-            width: 100%;
-            border-radius: 8px;
-        }
-
-        .nav-text {
-            display: inline;
-        }
-
-        .nav-item-divider {
-            display: none;
-        }
-
-        .nav-item-user {
-            padding: 0;
-            order: -1;
-        }
-
-        .user-profile {
-            padding: 8px 16px;
-            width: 100%;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .user-name {
-            display: inline;
-        }
-
-        .user-role {
-            display: inline;
-        }
-
-        .nav-link-logout {
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 12px;
-            margin-top: 4px;
-        }
-
-        .brand-text {
-            font-size: 18px;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .nav-container {
-            padding: 0 12px;
-        }
-
-        .brand-text {
-            font-size: 16px;
-        }
-
-        .brand-icon {
-            font-size: 22px;
-        }
-
-        .user-avatar {
-            width: 30px;
-            height: 30px;
-            font-size: 12px;
-        }
-    }
-</style>
-
 <script>
-    // Mobile menu toggle
+    // Nav dropdown toggles
     document.addEventListener('DOMContentLoaded', function() {
         const navToggle = document.getElementById('navToggle');
         const navMenu = document.getElementById('navMenu');
+        const userToggle = document.getElementById('userDropdownToggle');
+        const userMenu = document.getElementById('userDropdownMenu');
+        const adminToggle = document.getElementById('adminDropdownToggle');
+        const adminMenu = document.getElementById('adminDropdownMenu');
+        const teacherToggle = document.getElementById('teacherDropdownToggle');
+        const teacherMenu = document.getElementById('teacherDropdownMenu');
 
+        // Mobile menu toggle
         if (navToggle && navMenu) {
             navToggle.addEventListener('click', function() {
                 this.classList.toggle('active');
                 navMenu.classList.toggle('open');
             });
 
-            // Close menu when clicking a link
+            // Close mobile menu when clicking a link
             navMenu.querySelectorAll('a').forEach(function(link) {
                 link.addEventListener('click', function() {
                     navToggle.classList.remove('active');
@@ -428,5 +146,76 @@
                 });
             });
         }
+
+        // Helper function to toggle dropdown
+        function toggleDropdown(toggle, menu) {
+            if (toggle && menu) {
+                toggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('active');
+                    menu.classList.toggle('open');
+                    
+                    // Close other dropdowns
+                    if (adminToggle && adminToggle !== toggle && adminMenu) {
+                        adminToggle.classList.remove('active');
+                        adminMenu.classList.remove('open');
+                    }
+                    if (teacherToggle && teacherToggle !== toggle && teacherMenu) {
+                        teacherToggle.classList.remove('active');
+                        teacherMenu.classList.remove('open');
+                    }
+                    if (userToggle && userToggle !== toggle && userMenu) {
+                        userToggle.classList.remove('active');
+                        userMenu.classList.remove('open');
+                    }
+                });
+            }
+        }
+
+        // Initialize dropdowns
+        toggleDropdown(adminToggle, adminMenu);
+        toggleDropdown(teacherToggle, teacherMenu);
+        toggleDropdown(userToggle, userMenu);
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            const allToggles = [adminToggle, teacherToggle, userToggle];
+            const allMenus = [adminMenu, teacherMenu, userMenu];
+            
+            allToggles.forEach((toggle, index) => {
+                if (toggle && allMenus[index]) {
+                    if (!toggle.contains(e.target) && !allMenus[index].contains(e.target)) {
+                        toggle.classList.remove('active');
+                        allMenus[index].classList.remove('open');
+                    }
+                }
+            });
+        });
+
+        // Close dropdowns when clicking a link inside them
+        document.querySelectorAll('.nav-dropdown-menu .dropdown-item, .user-dropdown-menu .dropdown-item').forEach(function(link) {
+            link.addEventListener('click', function() {
+                // Close all dropdowns
+                [adminToggle, teacherToggle, userToggle].forEach(function(toggle) {
+                    if (toggle) {
+                        toggle.classList.remove('active');
+                    }
+                });
+                [adminMenu, teacherMenu, userMenu].forEach(function(menu) {
+                    if (menu) {
+                        menu.classList.remove('open');
+                    }
+                });
+            });
+        });
+
+        // Set active link based on current path
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(function(link) {
+            const href = link.getAttribute('href');
+            if (href === currentPath || (href !== '/' && currentPath.startsWith(href))) {
+                link.classList.add('active');
+            }
+        });
     });
 </script>

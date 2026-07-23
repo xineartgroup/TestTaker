@@ -5,16 +5,6 @@
     <%- include('./partials/nav.ejs') %>
 
     <div class="dashboard-container">
-        <!-- Welcome Section -->
-        <div class="welcome-section">
-            <div class="welcome-card">
-                <div class="welcome-icon">👋</div>
-                <div class="welcome-content">
-                    <h1>Welcome back, <%= session.user.FirstName %> <%= session.user.LastName %>!</h1>
-                    <p>Ready to continue your learning journey? Browse the available exams below.</p>
-                </div>
-            </div>
-        </div>
 
         <!-- Search Section -->
         <div class="search-section">
@@ -62,9 +52,9 @@
                                     </div>
                                 </div>
                                 <div class="exam-card-footer">
-                                    <a href="/exams/take/<%= exam.Id %>" class="btn-take-exam">
-                                        Start Exam
-                                        <span class="btn-arrow">→</span>
+                                    <a href="/exams/edit/<%= exam.Id %>" class="btn-take-exam">
+                                        Edit Exam
+                                        <span class="btn-arrow"></span>
                                     </a>
                                 </div>
                             </div>

@@ -48,6 +48,7 @@ if (process.env.NODE_ENV === 'production') {
         secret: process.env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
+        name: 'student.sid',
         store: new storeMSSQL(dbConfig), // Use your Azure DB config here
         cookie: {
             httpOnly: true,
