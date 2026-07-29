@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="detail-ui content">
+        <h2><%= title %></h2>
+        
+        <% if (error) { %>
+            <div class="error-message"><%= error %></div>
+        <% } %>
+
+        <form action="/questions/update/<%= question.Id %>" method="POST" id="questionForm">
+            <div class="form-group">
+                <label for="ExamId">Exam:</label>
+                <select id="ExamId" name="ExamId" required>
+                    <option value="">-- Select Exam --</option>
+                    <% if (exams && exams.length > 0) { %>
+                        <% exams.forEach(exam => { %>
+                            <option value="<%= exam.Id %>" <%= question.ExamId === exam.Id ? 'selected' : '' %>>
+                                <%= exam.Name %>
+                            </option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="Text">Question Text:</label>
+                <textarea id="Text" name="Text" rows="4" required><%= question.Text %></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="AnswerType">Answer Type:</label>
+                <select id="AnswerType" name="AnswerType" required>
+                    <option value="0" <%= question.AnswerType === 0 ? 'selected' : '' %>>Single Choice</option>
+                    <option value="1" <%= question.AnswerType === 1 ? 'selected' : '' %>>Multiple Choice</option>
+                    <option value="2" <%= question.AnswerType === 2 ? 'selected' : '' %>>Essay</option>
+                </select>
+            </div>
+
+            <!-- Options Section -->
+            <div class="form-group options-section" id="optionsSection">
+                <label>Options:</label>
+                <div class="options-container">
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Text</th>
+                                <th class="option-correct-header">Correct</th>
+                                <th class="option-actions-header">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optionsList">
+                            <% if (options && options.length > 0) { %>
+                                <% options.forEach((option, index) => { %>
+                                    <tr class="option-item">
+                                        <td>
+                                            <input type="text" name="Options[<%= index %>][Text]" value="<%= option.Text %>" placeholder="Enter option text..." class="option-input" required>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <input type="checkbox" name="Options[<%= index %>][IsCorrect]" class="option-correct-checkbox" value="true" <%= option.IsCorrect ? 'checked' : '' %>>
+                                            <input type="hidden" name="Options[<%= index %>][Id]" value="<%= option.Id %>">
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <button type="button" class="btn-remove-option" onclick="removeOption(this)">×</button>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr class="option-item">
+                                    <td>
+                                        <input type="text" name="Options[0][Text]" placeholder="Enter option text..." class="option-input" required>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" name="Options[0][IsCorrect]" class="option-correct-checkbox" value="true">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <button type="button" class="btn-remove-option" onclick="removeOption(this)">×</button>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn-add-option" onclick="addOption()">+ Add Option</button>
+                </div>
+            </div>
+
+            <div class="form-buttons">
+                <button type="submit">Update Question</button>
+                <a href="/questions?examId=<%= question.ExamId || '' %>" class="cancel-button">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let optionCounter = document.querySelectorAll('.option-item').length || 1;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const answerType = parseInt(document.getElementById('AnswerType').value);
+            const optionsSection = document.getElementById('optionsSection');
+            if (answerType === 2) {
+                optionsSection.style.display = 'none';
+            }
+        });
+        
+        function addOption() {
+            const optionsList = document.getElementById('optionsList');
+            const tr = document.createElement('tr');
+            tr.className = 'option-item';
+            tr.innerHTML = `
+                <td>
+                    <input type="text" name="Options[${optionCounter}][Text]" placeholder="Enter option text..." class="option-input" required>
+                </td>
+                <td style="text-align: center;">
+                    <input type="checkbox" name="Options[${optionCounter}][IsCorrect]" class="option-correct-checkbox" value="true">
+                </td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn-remove-option" onclick="removeOption(this)">×</button>
+                </td>
+            `;
+            optionsList.appendChild(tr);
+            optionCounter++;
+        }
+        
+        function removeOption(button) {
+            const tr = button.closest('tr');
+            const optionsList = document.getElementById('optionsList');
+            if (optionsList.children.length <= 2) {
+                alert('You need at least 2 options for a question.');
+                return;
+            }
+            tr.remove();
+        }
+        
+        document.getElementById('AnswerType').addEventListener('change', function() {
+            const optionsSection = document.getElementById('optionsSection');
+            if (parseInt(this.value) === 2) {
+                optionsSection.style.display = 'none';
+            } else {
+                optionsSection.style.display = 'block';
+            }
+        });
+        
+        document.getElementById('questionForm').addEventListener('submit', function(e) {
+            const examId = document.getElementById('ExamId').value;
+            const text = document.getElementById('Text').value.trim();
+            const answerType = parseInt(document.getElementById('AnswerType').value);
+            
+            if (!examId) {
+                e.preventDefault();
+                alert('Please select an exam');
+                return false;
+            }
+            
+            if (!text) {
+                e.preventDefault();
+                alert('Please enter the question text');
+                return false;
+            }
+            
+            if (answerType !== 2) {
+                const optionInputs = document.querySelectorAll('.option-input');
+                let filledOptions = 0;
+                optionInputs.forEach(input => {
+                    if (input.value.trim()) {
+                        filledOptions++;
+                    }
+                });
+                
+                if (filledOptions < 2) {
+                    e.preventDefault();
+                    alert('Please add at least 2 options with text');
+                    return false;
+                }
+                
+                const correctCheckboxes = document.querySelectorAll('.option-correct-checkbox:checked');
+                if (correctCheckboxes.length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one correct answer');
+                    return false;
+                }
+            }
+        });
+    </script>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

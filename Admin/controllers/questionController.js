@@ -27,6 +27,15 @@ router.get("", async (req, res) => {
             searchValue = decodeURIComponent(searchValue);
             if (searchValue === "*") searchValue = "";
 
+            // Get exam name if examId is provided
+            let examName = null;
+            if (examId) {
+                const examResult = await makeApiRequest('GET', `/api/exams/${examId}`, req);
+                if (examResult.issuccess) {
+                    examName = examResult.exam.Name;
+                }
+            }
+
             return res.render('questions/index', {
                 title: 'Question List',
                 questions: result.questions,
@@ -35,7 +44,8 @@ router.get("", async (req, res) => {
                 searchValue,
                 sortName,
                 sortOrder,
-                examId
+                examId,
+                examName
             });
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
@@ -53,7 +63,8 @@ router.get('/create', async (req, res) => {
         return res.render('questions/create', { 
             title: 'New Question', 
             exams: examsResult.issuccess ? examsResult.exams : [],
-            selectedExamId: req.query.examId || "" 
+            selectedExamId: req.query.examId || "",
+            error: null
         });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -74,14 +85,23 @@ router.post('/create', async (req, res) => {
 router.get('/update/:id', async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        
+        // Fetch the question
         const questionResult = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);
+        
+        // Fetch all exams for the dropdown
         const examsResult = await makeApiRequest('GET', '/api/exams?skip=0&limit=1000', req);
+        
+        // Fetch options for this question
+        const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${req.params.id}`, req);
 
         if (questionResult.issuccess) {
             return res.render('questions/update', { 
                 title: 'Update Question', 
                 question: questionResult.question,
-                exams: examsResult.issuccess ? examsResult.exams : []
+                exams: examsResult.issuccess ? examsResult.exams : [],
+                options: optionsResult.issuccess ? optionsResult.options : [],
+                error: null
             });
         }
         return res.render('error', { title: 'Error', detail: questionResult.message });
@@ -104,9 +124,31 @@ router.post('/update/:id', async (req, res) => {
 router.get('/delete/:id', async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
-        const result = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);
-        if (result.issuccess) return res.render('questions/delete', { title: 'Delete Question', question: result.question });
-        return res.render('error', { title: 'Error', detail: result.message });
+        
+        // Fetch the question
+        const questionResult = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);
+        
+        // Fetch options for this question to show count
+        const optionsResult = await makeApiRequest('GET', `/api/options?questionId=${req.params.id}`, req);
+        
+        // Fetch exam name
+        let examName = null;
+        if (questionResult.issuccess && questionResult.question.ExamId) {
+            const examResult = await makeApiRequest('GET', `/api/exams/${questionResult.question.ExamId}`, req);
+            if (examResult.issuccess) {
+                examName = examResult.exam.Name;
+            }
+        }
+
+        if (questionResult.issuccess) {
+            return res.render('questions/delete', { 
+                title: 'Delete Question', 
+                question: questionResult.question,
+                options: optionsResult.issuccess ? optionsResult.options : [],
+                examName: examName
+            });
+        }
+        return res.render('error', { title: 'Error', detail: questionResult.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
     }

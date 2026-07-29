@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="table-container">
+        <div class="table-header">
+            <h2><%= title %></h2>
+            <a href="/subjects/create" class="btn btn-primary">+ Add New Subject</a>
+        </div>
+
+        <!-- Search Form -->
+        <form action="/subjects" method="GET" class="form-search">
+            <input type="text" id="searchValue" name="searchValue" placeholder="Search subjects..." value="<%= searchValue %>">
+            <button type="submit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </button>
+        </form>
+
+        <!-- Subjects Table -->
+        <% if (subjects && subjects.length > 0) { %>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="/subjects?sortName=Id&sortOrder=<%= sortName === 'Id' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
+                                ID
+                                <% if (sortName === 'Id') { %>
+                                    <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
+                                <% } %>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="/subjects?sortName=Name&sortOrder=<%= sortName === 'Name' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
+                                Name
+                                <% if (sortName === 'Name') { %>
+                                    <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
+                                <% } %>
+                            </a>
+                        </th>
+                        <th>Description</th>
+                        <th>Date Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% subjects.forEach(subject => { %>
+                        <tr>
+                            <td><%= subject.Id %></td>
+                            <td><strong><%= subject.Name %></strong></td>
+                            <td><%= subject.Description || 'N/A' %></td>
+                            <td><%= subject.DateCreated ? new Date(subject.DateCreated).toLocaleDateString() : 'N/A' %></td>
+                            <td class="actions">
+                                <a href="/subjects/update/<%= subject.Id %>" class="table-button btn-edit" title="Edit">
+                                    ✏️
+                                </a>
+                                <a href="/subjects/delete/<%= subject.Id %>" class="table-button btn-delete" title="Delete">
+                                    🗑️
+                                </a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="/subjects?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="prev">‹</a>
+                    <% } %>
+                    
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <% if (i === currentPage) { %>
+                            <span class="active"><%= i %></span>
+                        <% } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) { %>
+                            <a href="/subjects?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>"><%= i %></a>
+                        <% } else if (i === currentPage - 3 || i === currentPage + 3) { %>
+                            <span class="ellipsis">…</span>
+                        <% } %>
+                    <% } %>
+                    
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/subjects?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="next">›</a>
+                    <% } %>
+                </div>
+            <% } %>
+        <% } else { %>
+            <div class="empty-state">
+                <div class="empty-icon">📚</div>
+                <h3>No Subjects Found</h3>
+                <p><%= searchValue ? `No subjects found matching "${searchValue}"` : 'Click "Add New Subject" to create your first subject.' %></p>
+                <% if (searchValue) { %>
+                    <a href="/subjects" class="btn btn-secondary">Clear Search</a>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>

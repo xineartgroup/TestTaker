@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="table-container">
+        <div class="table-header">
+            <div>
+                <h2><%= title %></h2>
+                <% if (examName) { %>
+                    <p class="exam-context">Exam: <strong><%= examName %></strong></p>
+                <% } %>
+            </div>
+            <div class="header-actions">
+                <a href="/exams/update/<%= examId %>" class="btn btn-secondary">← Back to Exams</a>
+                <a href="/questions/create?examId=<%= examId %>" class="btn btn-primary">+ Add New Question</a>
+            </div>
+        </div>
+
+        <!-- Search Form -->
+        <form action="/questions" method="GET" class="form-search">
+            <input type="text" id="searchValue" name="searchValue" placeholder="Search questions..." value="<%= searchValue %>">
+            <input type="hidden" name="examId" value="<%= examId %>">
+            <button type="submit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </button>
+            <% if (searchValue) { %>
+                <a href="/questions?examId=<%= examId %>" class="btn-clear-search">✕</a>
+            <% } %>
+        </form>
+
+        <!-- Questions Table -->
+        <% if (questions && questions.length > 0) { %>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th style="width: 140px;">
+                            <a href="/questions?sortName=AnswerType&sortOrder=<%= sortName === 'AnswerType' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %><%= examId ? '&examId=' + examId : '' %>">
+                                Type
+                                <% if (sortName === 'AnswerType') { %>
+                                    <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
+                                <% } %>
+                            </a>
+                        </th>
+                        <th style="width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% questions.forEach((question, index) => { %>
+                        <tr>
+                            <td class="question-text"><%= question.Text ? question.Text.substring(0, 80) + (question.Text.length > 80 ? '...' : '') : 'N/A' %></td>
+                            <td>
+                                <% if (question.AnswerType === 0) { %>
+                                    <span class="badge badge-single">Single Choice</span>
+                                <% } else if (question.AnswerType === 1) { %>
+                                    <span class="badge badge-multiple">Multiple Choice</span>
+                                <% } else if (question.AnswerType === 2) { %>
+                                    <span class="badge badge-essay">Essay</span>
+                                <% } %>
+                            </td>
+                            <td class="actions">
+                                <a href="/questions/update/<%= question.Id %>" class="btn-icon btn-edit" title="Edit">✏️</a>
+                                <a href="/questions/delete/<%= question.Id %>" class="btn-icon btn-delete" title="Delete">🗑️</a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="/questions?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="prev">‹</a>
+                    <% } %>
+                    
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <% if (i === currentPage) { %>
+                            <span class="active"><%= i %></span>
+                        <% } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) { %>
+                            <a href="/questions?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>"><%= i %></a>
+                        <% } else if (i === currentPage - 3 || i === currentPage + 3) { %>
+                            <span class="ellipsis">…</span>
+                        <% } %>
+                    <% } %>
+                    
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/questions?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="next">›</a>
+                    <% } %>
+                </div>
+            <% } %>
+        <% } else { %>
+            <div class="empty-state">
+                <div class="empty-icon">❓</div>
+                <h3>No Questions Found</h3>
+                <p><%= searchValue ? `No questions found matching "${searchValue}"` : 'This exam has no questions yet. Click "Add New Question" to create your first question.' %></p>
+                <% if (searchValue) { %>
+                    <a href="/questions?examId=<%= examId %>" class="btn btn-secondary">Clear Search</a>
+                <% } %>
+                <% if (!searchValue) { %>
+                    <a href="/questions/create?examId=<%= examId %>" class="btn btn-primary" style="margin-top: 10px;">+ Add First Question</a>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+
+    <%- include('../partials/footer.ejs') %>
+</body>
+</html>
