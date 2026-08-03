@@ -81,7 +81,7 @@ router.get('/create', requireAuth, async (req, res) => {
 router.post('/create', requireAuth, async (req, res) => {
     try {
         const result = await makeApiRequest('POST', '/api/exams/create', req, req.body);
-        if (result.issuccess) return res.redirect('/exams');
+        if (result.issuccess) return res.redirect('/');
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });

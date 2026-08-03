@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns="https://xineartsolutions.com">
+<%- include('../partials/header.ejs') %>
+<body>
+    <%- include('../partials/nav.ejs') %>
+    
+    <div class="detail-ui content">
+        <h2><%= title %></h2>
+        
+        <% if (error) { %>
+            <div class="error-message"><%= error %></div>
+        <% } %>
+
+        <form action="/exams/create" method="POST">
+            <div class="form-group">
+                <label for="Name">Exam Name:</label>
+                <input type="text" id="Name" name="Name" placeholder="Enter exam name..." required>
+            </div>
+
+            <div class="form-group">
+                <label for="SubjectId">Subject:</label>
+                <select id="SubjectId" name="SubjectId" required>
+                    <option value="">-- Select Subject --</option>
+                    <% if (subjects && subjects.length > 0) { %>
+                        <% subjects.forEach(subject => { %>
+                            <option value="<%= subject.Id %>">
+                                <%= subject.Name %>
+                            </option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+
+            <!-- Questions Field - Link to Questions List -->
+            <div class="form-group">
+                <label for="Questions">Questions:</label>
+                <div class="questions-field">
+                    <span class="question-count">Add questions after creating the exam</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="QuestionCount">Question Count:</label>
+                <input type="number" id="QuestionCount" name="QuestionCount" value="0" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Length">Duration (minutes):</label>
+                <input type="number" id="Length" name="Length" value="60" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="QuestionType">Question Type:</label>
+                <select id="QuestionType" name="QuestionType">
+                    <option value="Multiple Choice">Multiple Choice</option>
+                    <option value="True/False">True/False</option>
+                    <option value="Essay">Essay</option>
+                    <option value="Mixed">Mixed</option>
+                </select>
+            </div>
+
+            <!--<div class="form-group">
+                <label for="IsActive">Status:</label>
+                <select id="IsActive" name="IsActive">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>-->
+
+            <div class="form-buttons">
+                <button type="submit">Create Exam</button>
+                <a href="/exams" class="cancel-button">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <style>
+        .questions-field {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            width: 70%;
+        }
+        
+        .question-count {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .hint-text {
+            font-size: 13px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .hint {
+            display: block;
+            margin-top: 5px;
+            color: #6c757d;
+            font-size: 12px;
+            width: 70%;
+            margin-left: 30%;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .questions-field {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .question-count {
+                text-align: center;
+            }
+            
+            .hint {
+                width: 100%;
+                margin-left: 0;
+            }
+        }
+    </style>
+
+    <script>
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const name = document.getElementById('Name').value.trim();
+            const subjectId = document.getElementById('SubjectId').value;
+            const questionCount = parseInt(document.getElementById('QuestionCount').value);
+            const length = parseInt(document.getElementById('Length').value);
+            
+            if (!name) {
+                e.preventDefault();
+                alert('Please enter an exam name');
+                return false;
+            }
+            
+            if (!subjectId) {
+                e.preventDefault();
+                alert('Please select a subject');
+                return false;
+            }
+            
+            if (isNaN(questionCount) || questionCount < 0) {
+                e.preventDefault();
+                alert('Please enter a valid number of questions (0 or more)');
+                return false;
+            }
+            
+            if (isNaN(length) || length < 1) {
+                e.preventDefault();
+                alert('Please enter a valid duration (minimum 1 minute)');
+                return false;
+            }
+        });
+    </script>
+</body>
+<%- include('../partials/footer.ejs') %>
+</html>
