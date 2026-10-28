@@ -23,7 +23,7 @@ const schoolController = require('./controllers/schoolController');
 const { makeApiRequest } = require("./controllers/_baseController");
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // Crucial for Azure to recognize HTTPS and session cookies correctly
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
@@ -49,12 +49,12 @@ if (process.env.NODE_ENV === 'production') {
         resave: false,
         saveUninitialized: false,
         name: 'student.sid',
-        store: new storeMSSQL(dbConfig), // Use your Azure DB config here
+        store: new storeMSSQL(dbConfig),
         cookie: {
             httpOnly: true,
-            maxAge: 3600000,       // 1 hour session timeout
-            sameSite: 'none',       // allow POST redirects and cross-origin form submissions
-            secure: true          // must be false for HTTP (local dev); true for HTTPS in production
+            maxAge: 3600000,
+            sameSite: 'none',
+            secure: true // True in production because Azure terminates HTTPS
         }
     }));
 }
@@ -65,9 +65,9 @@ else {
         saveUninitialized: false,
         cookie: {
             httpOnly: true,
-            maxAge: 3600000,       // 1 hour session timeout
-            sameSite: 'none',       // allow POST redirects and cross-origin form submissions
-            secure: true          // must be false for HTTP (local dev); true for HTTPS in production
+            maxAge: 3600000,
+            sameSite: 'none',
+            secure: true 
         }
     }));
 }
@@ -77,7 +77,7 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors()); // Enable CORS for all routes (adjust as needed for security)
+app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(flash());
@@ -101,20 +101,18 @@ const storage = multer.diskStorage({
         cb(null, 'uploads/');
     },
     filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9); // Define the filename.
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const fileExtension = path.extname(file.originalname);
-        cb(null, uniqueSuffix + fileExtension); //file.fieldname + '-' + 
+        cb(null, uniqueSuffix + fileExtension);
     }
 });
 
-// Create the multer instance with the configured storage 'image' here must match the field name in curl command/Android upload
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // Optional: Limit file size to 10MB
+        fileSize: 10 * 1024 * 1024
     },
     fileFilter: (req, file, cb) => {
-        // Optional: Filter file types
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
@@ -123,10 +121,7 @@ const upload = multer({
     }
 });
 
-// This handles the POST request to /upload
 app.post('/upload', upload.single('image'), (req, res) => {
-    // 'image' is the field name from your curl command (-F "image=@...")
-
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
@@ -140,14 +135,11 @@ app.post('/upload', upload.single('image'), (req, res) => {
     });
 });
 
-// --- Error Handling Middleware (important for debugging) ---
 app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        // A Multer error occurred when uploading.
         console.error("Multer error:", err.message);
         return res.status(400).send(`Multer Error: ${err.message}`);
     } else if (err) {
-        // An unknown error occurred
         console.error("General error:", err.message);
         return res.status(500).send(`Server Error: ${err.message}`);
     }
@@ -163,10 +155,7 @@ app.get('/', async (req, res) => {
             return res.render('error', { title: 'Error', detail: "No user found in session." });
         }
 
-        // Get the raw search string from the URL query parameters
         let rawSearch = req.query.searchValue || "";
-        let searchValue = rawSearch !== '' ? encodeURIComponent(rawSearch) : "";
-
         const sql = require('mssql'); 
         let exams = [];
         
@@ -187,9 +176,7 @@ app.get('/', async (req, res) => {
             let request = pool.request();
             let queryStr = 'SELECT * FROM Exams';
 
-            // If the user typed a search term, filter the SQL query dynamically
             if (rawSearch !== '') {
-                // Use a parameterized input to safely match your 'Name' column without SQL injection risk
                 request.input('searchPattern', sql.VarChar, `%${rawSearch}%`);
                 queryStr += ' WHERE Name LIKE @searchPattern';
             }
@@ -201,11 +188,10 @@ app.get('/', async (req, res) => {
             exams = []; 
         }
 
-        // Pass 'exams' along with the decoded search value back to the view
         res.render('index', { 
             title: "Home", 
             message: "", 
-            searchValue: rawSearch, // Pass the clean unencoded string back so the text input preserves what they typed
+            searchValue: rawSearch,
             exams 
         });
 
@@ -217,10 +203,6 @@ app.get('/', async (req, res) => {
 app.get('/about', (req, res) => {
     res.render('about', { title: 'About' });
 });
-
-//app.get('/users', (req, res) => {
-//    res.redirect('/users');
-//});
 
 app.use(authController);
 app.use('/users', userController);
@@ -235,20 +217,30 @@ app.use((req, res) => {
     res.render('error', { title: 'Error', detail: `Page '${req.url}' not found.` });
 });
 
+// ==========================================================
+// SERVER STARTUP LOGIC (Updated for Azure Production)
+// ==========================================================
+
+// Azure injects process.env.PORT. We use it in production, otherwise fallback to local config port or 3000.
+const appPort = process.env.PORT || port || 3000;
+
 if (process.env.NODE_ENV === 'production') {
-    // A production environment will have proper certificates
-    app.listen(port);
+    // In Azure, HTTPS is terminated at the load balancer. 
+    // The app MUST listen on standard HTTP using the port Azure provides.
+    app.listen(appPort, () => {
+        console.log(`Production server running on port ${appPort}`);
+    });
 }
 else {
-    // Read the generated certificate and key
+    // Local development: Use HTTPS with self-signed certs
     const httpsOptions = {
-    key: fs.readFileSync('./key.pem'),
-    cert: fs.readFileSync('./cert.pem')
+        key: fs.readFileSync('./key.pem'),
+        cert: fs.readFileSync('./cert.pem')
     };
 
     const server = https.createServer(httpsOptions, app);
 
-    server.listen(port, () => {
-        console.log(`HTTPS Development server running on https://localhost:${port}`);
+    server.listen(appPort, () => {
+        console.log(`HTTPS Development server running on https://localhost:${appPort}`);
     });
 }

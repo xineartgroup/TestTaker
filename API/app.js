@@ -27,6 +27,7 @@ const schoolapiController = require('./middleware/schoolAPIController');
 const { generateToken, authenticateToken, checkPermission } = require("./middleware/_baseAPIController");
 
 const app = express();
+app.set('trust proxy', 1); // Crucial for Azure to recognize HTTPS and session cookies correctly
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -47,7 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use(cors({
-    origin: process.env.ALLOWED_APP_URL, // `http://${hostname}:${port}`,
+    origin: process.env.ALLOWED_APP_URL || `http://${hostname}:${port}`,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -60,19 +61,19 @@ if (process.env.NODE_ENV === 'production') {
         saveUninitialized: false,
         cookie: {
             maxAge: 3600000, // session timeout of 60 minutes
-            secure: true,
+            secure: true,    // True in production because Azure terminates HTTPS
             sameSite: 'none'
         }
     }));
 }
 else {
     app.use(session({
-        secret: process.env.SESSION_SECRET,
+        secret: process.env.SESSION_SECRET || 'dev-secret-key',
         resave: false,
         saveUninitialized: false,
         cookie: {
             maxAge: 3600000, // session timeout of 60 minutes
-            secure: false,
+            secure: false,   // False for local HTTP development
             sameSite: 'none'
         }
     }));
@@ -88,7 +89,7 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-    console.log('Host: ', req.protocol + "://" + req.get('host') + req.path + ' ' + req.method); // req.hostname
+    console.log('Host: ', req.protocol + "://" + req.get('host') + req.path + ' ' + req.method);
     next();
 });
 
@@ -112,20 +113,30 @@ app.use((req, res) => {
     res.status(200).json({ message: 'Site is working' });
 });
 
+// ==========================================================
+// SERVER STARTUP LOGIC (Updated for Azure Production)
+// ==========================================================
+
+// Azure injects process.env.PORT. We use it in production, otherwise fallback to local config port or 3000.
+const appPort = process.env.PORT || port || 3000;
+
 if (process.env.NODE_ENV === 'production') {
-    // A production environment will have proper certificates
-    app.listen(port);
+    // In Azure, HTTPS is terminated at the load balancer. 
+    // The app MUST listen on standard HTTP using the port Azure provides.
+    app.listen(appPort, () => {
+        console.log(`Production API server running on port ${appPort}`);
+    });
 }
 else {
-    // Read the generated certificate and key
+    // Local development: Use HTTPS with self-signed certs
     const httpsOptions = {
-    key: fs.readFileSync('./key.pem'),
-    cert: fs.readFileSync('./cert.pem')
+        key: fs.readFileSync('./key.pem'),
+        cert: fs.readFileSync('./cert.pem')
     };
 
     const server = https.createServer(httpsOptions, app);
 
-    server.listen(port, () => {
-        console.log(`HTTPS Development server running on ://localhost:${port}`);
+    server.listen(appPort, () => {
+        console.log(`HTTPS Development API server running on https://localhost:${appPort}`);
     });
 }
