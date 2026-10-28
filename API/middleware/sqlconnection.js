@@ -1,52 +1,51 @@
-const mysql = require('mysql2/promise');
+const sql = require('mssql');
+const cors = require('cors');
+const express = require('express');
 
-let pool;
+const app = express();
+app.use(cors());
 
-function createPool() {
-    console.log("process.env.NODE_ENV", process.env.NODE_ENV);
+let config;
 
-    let config;
+console.log("process.env.NODE_ENV", process.env.NODE_ENV);
 
-    if (process.env.NODE_ENV === 'production') {
-        // Production (e.g. managed MySQL — PlanetScale, RDS, Azure MySQL, etc.)
-        config = {
-            host: process.env.DB_HOST,
-            port: Number(process.env.DB_PORT || 3306),
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            ssl: { rejectUnauthorized: true }
-        };
-    } else {
-        // Local MySQL
-        config = {
-            host: process.env.DB_HOST || '127.0.0.1',
-            port: Number(process.env.DB_PORT || 3306),
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'TestTaker'
-        };
-    }
-
-    return mysql.createPool({
-        ...config,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        charset: 'utf8mb4_unicode_ci',
-        dateStrings: false,
-        typeCast: (field, next) => {
-            if (field.type === 'TINY' && field.length === 1) {
-                return field.string() === '1';
-            }
-            return next();
-        }
-    });
+if (process.env.NODE_ENV === 'production') {
+    // Configuration for Azure SQL Database
+    config = {
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        server: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        options: {
+            encrypt: true,
+            trustServerCertificate: false,
+            enableArithAbort: true
+        },
+        port: 1433
+    };
+} else {
+    // Configuration for Local SQL Express
+    config = {
+        user: process.env.DB_USER || "obinna",
+        password: process.env.DB_PASSWORD || "P@$$w0rd",
+        server: process.env.DB_HOST || "CHIKWENDU_PC\\SQLEXPRESS",
+        database: process.env.DB_NAME || "TestTaker",
+        options: {
+            trustServerCertificate: true,
+            enableArithAbort: true,
+            instancename: "SQLEXPRESS"
+        },
+        port: 1433
+    };
 }
 
 async function getPool() {
-    if (!pool) pool = createPool();
-    return pool;
+    try {
+        return await sql.connect(config);
+    } catch (error) {
+        console.error("Database connection error:", error);
+        throw error;
+    }
 }
 
 module.exports = getPool;

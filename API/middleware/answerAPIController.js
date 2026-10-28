@@ -4,119 +4,186 @@ const { authenticateToken, checkPermission } = require("../middleware/_baseAPICo
 
 const router = express.Router();
 
+// Get all answers for a user (with optional exam filter)
 router.get("/", authenticateToken, async (req, res) => {
     try {
         const { examId, questionId, sessionId } = req.query;
         const userId = req.user.Id;
         const pool = await getPool();
-
-        let query = "SELECT * FROM Answers WHERE UserId = ?";
-        const params = [userId];
-
-        if (examId)      { query += " AND ExamId = ?";     params.push(examId); }
-        if (questionId)  { query += " AND QuestionId = ?"; params.push(questionId); }
-        if (sessionId)   { query += " AND SessionId = ?";  params.push(sessionId); }
-
-        const [rows] = await pool.query(query, params);
-
-        return res.json({ issuccess: true, message: "", count: rows.length, answers: rows });
+        
+        let query = "SELECT * FROM Answers WHERE UserId = @userId";
+        let request = pool.request().input('userId', userId);
+        
+        if (examId) {
+            query += " AND ExamId = @examId";
+            request.input('examId', examId);
+        }
+        
+        if (questionId) {
+            query += " AND QuestionId = @questionId";
+            request.input('questionId', questionId);
+        }
+        
+        if (sessionId) {
+            query += " AND SessionId = @sessionId";
+            request.input('sessionId', sessionId);
+        }
+        
+        const result = await request.query(query);
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: result.recordset ? result.recordset.length : 0, 
+            answers: result.recordset || [] 
+        });
+        
     } catch (err) {
         console.error("Error fetching answers:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, answers: [] });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            answers: [] 
+        });
     }
 });
 
+// Get user's exam scores grouped by session
 router.get("/scores", authenticateToken, async (req, res) => {
     try {
         const userId = req.user.Id;
         const pool = await getPool();
-
-        const [rows] = await pool.query(`
-            SELECT
-                a.SessionId,
-                a.ExamId,
-                e.Name AS ExamName,
-                COUNT(DISTINCT a.QuestionId) AS TotalQuestions,
-                SUM(a.PointsEarned) AS EarnedPoints,
-                COUNT(DISTINCT a.QuestionId) AS TotalPoints,
-                MAX(a.DateCreated) AS DateCreated,
-                TIMESTAMPDIFF(MINUTE, MIN(a.DateCreated), MAX(a.DateCreated)) AS DurationMinutes
-            FROM Answers a
-            JOIN Exams e ON a.ExamId = e.Id
-            WHERE a.UserId = ?
-            GROUP BY a.SessionId, a.ExamId, e.Name
-            ORDER BY MAX(a.DateCreated) DESC
-        `, [userId]);
-
-        const scores = rows.map(row => {
-            const totalPoints = Number(row.TotalPoints || 1);
-            const earnedPoints = Number(row.EarnedPoints || 0);
+        
+        const result = await pool.request()
+            .input('userId', userId)
+            .query(`
+                SELECT 
+                    a.SessionId,
+                    a.ExamId,
+                    e.Name as ExamName,
+                    COUNT(DISTINCT a.QuestionId) as TotalQuestions,
+                    SUM(a.PointsEarned) as EarnedPoints,
+                    COUNT(DISTINCT a.QuestionId) as TotalPoints,
+                    MAX(a.DateCreated) as DateCreated,
+                    DATEDIFF(MINUTE, MIN(a.DateCreated), MAX(a.DateCreated)) as DurationMinutes
+                FROM Answers a
+                JOIN Exams e ON a.ExamId = e.Id
+                WHERE a.UserId = @userId
+                GROUP BY a.SessionId, a.ExamId, e.Name
+                ORDER BY MAX(a.DateCreated) DESC
+            `);
+        
+        const scores = result.recordset.map(row => {
+            const totalPoints = row.TotalPoints || 1;
+            const earnedPoints = row.EarnedPoints || 0;
             const percentage = Math.round((earnedPoints / totalPoints) * 100);
+            
             return {
                 SessionId: row.SessionId,
                 ExamId: row.ExamId,
                 ExamName: row.ExamName,
                 TotalQuestions: row.TotalQuestions,
-                Correct: Math.round(earnedPoints),
+                Correct: Math.round(earnedPoints), // Approximate correct answers
                 EarnedPoints: earnedPoints,
                 TotalPoints: totalPoints,
                 Percentage: percentage,
                 DateCreated: row.DateCreated,
-                Duration: row.DurationMinutes != null ? `${row.DurationMinutes} mins` : 'N/A'
+                Duration: row.DurationMinutes ? `${row.DurationMinutes} mins` : 'N/A'
             };
         });
-
-        return res.json({ issuccess: true, message: "", count: scores.length, scores });
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: scores.length, 
+            scores: scores 
+        });
+        
     } catch (err) {
         console.error("Error fetching scores:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, scores: [] });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            scores: [] 
+        });
     }
 });
 
+// Get a specific answer by ID
 router.get("/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.Id;
         const pool = await getPool();
-
-        let query = "SELECT * FROM Answers WHERE Id = ?";
-        const params = [id];
-
+        
+        let query = "SELECT * FROM Answers WHERE Id = @id";
+        let request = pool.request().input('id', id);
+        
         if (req.user.Role !== 'Administrator') {
-            query += " AND UserId = ?";
-            params.push(userId);
+            query += " AND UserId = @userId";
+            request.input('userId', userId);
         }
-
-        const [rows] = await pool.query(query, params);
-        if (rows.length === 0) throw new Error("Answer not found or access denied");
-
-        return res.json({ issuccess: true, message: "", count: 1, answer: rows[0] });
+        
+        const result = await request.query(query);
+        
+        if (!result.recordset || result.recordset.length === 0) {
+            throw new Error("Answer not found or access denied");
+        }
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 1, 
+            answer: result.recordset[0] 
+        });
+        
     } catch (err) {
         console.error("Error fetching answer:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, answer: null });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            answer: null 
+        });
     }
 });
 
+// Save or update an answer
 router.post("/save", authenticateToken, async (req, res) => {
     try {
         const { examId, questionId, answerText, answerOptionId, sessionId } = req.body;
         const userId = req.user.Id;
         const pool = await getPool();
-
+        
+        console.log("Saving answer:", { examId, questionId, userId, answerText, answerOptionId, sessionId });
+        
         if (!examId || !questionId || !sessionId) {
             throw new Error("ExamId, QuestionId, and SessionId are required");
         }
-
-        const [qRows] = await pool.query("SELECT AnswerType FROM Questions WHERE Id = ?", [questionId]);
-        if (qRows.length === 0) throw new Error("Question not found");
-
-        const answerType = qRows[0].AnswerType;
+        
+        const questionResult = await pool.request()
+            .input('questionId', questionId)
+            .query("SELECT AnswerType FROM Questions WHERE Id = @questionId");
+        
+        if (!questionResult.recordset || questionResult.recordset.length === 0) {
+            throw new Error("Question not found");
+        }
+        
+        const answerType = questionResult.recordset[0].AnswerType;
         let pointsEarned = 0;
-
+        
         if (answerType === 0) {
             if (answerOptionId) {
-                const [oRows] = await pool.query("SELECT IsCorrect FROM Options WHERE Id = ?", [answerOptionId]);
-                if (oRows.length > 0) pointsEarned = oRows[0].IsCorrect ? 1 : 0;
+                const optionResult = await pool.request()
+                    .input('optionId', answerOptionId)
+                    .query("SELECT IsCorrect FROM Options WHERE Id = @optionId");
+                
+                if (optionResult.recordset && optionResult.recordset.length > 0) {
+                    const isCorrect = optionResult.recordset[0].IsCorrect ? 1 : 0;
+                    pointsEarned = isCorrect === 1 ? 1 : 0;
+                }
             }
         } else if (answerType === 1) {
             if (answerOptionId) {
@@ -124,112 +191,213 @@ router.post("/save", authenticateToken, async (req, res) => {
                 if (typeof answerOptionId === 'string' && answerOptionId.includes(',')) {
                     userAnswers = answerOptionId.split(',').map(a => parseInt(a.trim()));
                 } else if (Array.isArray(answerOptionId)) {
-                    userAnswers = answerOptionId.map(Number);
+                    userAnswers = answerOptionId;
                 } else {
                     userAnswers = [parseInt(answerOptionId)];
                 }
-
-                const [oRows] = await pool.query("SELECT Id, IsCorrect FROM Options WHERE QuestionId = ?", [questionId]);
-                const allOptions = oRows;
-                const totalCorrect = allOptions.filter(o => o.IsCorrect === true).length;
-
-                if (totalCorrect > 0) {
-                    let correctSelections = 0, incorrectSelections = 0;
-                    userAnswers.forEach(aid => {
-                        const opt = allOptions.find(o => o.Id === aid);
-                        if (opt) opt.IsCorrect ? correctSelections++ : incorrectSelections++;
-                    });
-                    const w = 1 / totalCorrect;
-                    pointsEarned = Math.max(0, (correctSelections * w) - (incorrectSelections * w));
+                
+                const optionsResult = await pool.request()
+                    .input('questionId', questionId)
+                    .query("SELECT Id, IsCorrect FROM Options WHERE QuestionId = @questionId");
+                
+                if (optionsResult.recordset && optionsResult.recordset.length > 0) {
+                    const allOptions = optionsResult.recordset;
+                    const correctOptions = allOptions.filter(o => o.IsCorrect === true);
+                    const totalCorrect = correctOptions.length;
+                    
+                    if (totalCorrect > 0) {
+                        let correctSelections = 0;
+                        let incorrectSelections = 0;
+                        
+                        userAnswers.forEach(answerId => {
+                            const option = allOptions.find(o => o.Id === answerId);
+                            if (option) {
+                                if (option.IsCorrect) {
+                                    correctSelections++;
+                                } else {
+                                    incorrectSelections++;
+                                }
+                            }
+                        });
+                        
+                        const weightPerCorrect = 1 / totalCorrect;
+                        let calculatedPoints = (correctSelections * weightPerCorrect) - (incorrectSelections * weightPerCorrect);
+                        pointsEarned = Math.max(0, calculatedPoints);
+                    }
                 }
             }
         } else if (answerType === 2) {
             pointsEarned = 0;
         }
-
-        const [existing] = await pool.query(
-            "SELECT Id FROM Answers WHERE ExamId = ? AND UserId = ? AND QuestionId = ? AND SessionId = ?",
-            [examId, userId, questionId, sessionId]
-        );
-
-        if (existing.length > 0) {
-            await pool.query(
-                `UPDATE Answers
-                    SET AnswerText = ?, AnswerOptionId = ?, PointsEarned = ?, DateCreated = NOW()
-                  WHERE Id = ?`,
-                [answerText || null, answerOptionId || null, pointsEarned, existing[0].Id]
-            );
+        
+        const checkResult = await pool.request()
+            .input('examId', examId)
+            .input('userId', userId)
+            .input('questionId', questionId)
+            .input('sessionId', sessionId)
+            .query("SELECT Id FROM Answers WHERE ExamId = @examId AND UserId = @userId AND QuestionId = @questionId AND SessionId = @sessionId");
+        
+        console.log("Check result:", checkResult.recordset);
+        
+        if (checkResult.recordset && checkResult.recordset.length > 0) {
+            const answerId = checkResult.recordset[0].Id;
+            await pool.request()
+                .input('id', answerId)
+                .input('answerText', answerText || null)
+                .input('answerOptionId', answerOptionId || null)
+                .input('pointsEarned', pointsEarned)
+                .query(`
+                    UPDATE Answers 
+                    SET AnswerText = @answerText, 
+                        AnswerOptionId = @answerOptionId,
+                        PointsEarned = @pointsEarned,
+                        DateCreated = GETDATE()
+                    WHERE Id = @id
+                `);
+            
+            console.log(`Updated answer ID: ${answerId} with points: ${pointsEarned}`);
         } else {
-            await pool.query(
-                `INSERT INTO Answers (ExamId, UserId, QuestionId, SessionId, AnswerText, AnswerOptionId, PointsEarned, DateCreated)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-                [examId, userId, questionId, sessionId, answerText || null, answerOptionId || null, pointsEarned]
-            );
+            await pool.request()
+                .input('examId', examId)
+                .input('userId', userId)
+                .input('questionId', questionId)
+                .input('sessionId', sessionId)
+                .input('answerText', answerText || null)
+                .input('answerOptionId', answerOptionId || null)
+                .input('pointsEarned', pointsEarned)
+                .query(`
+                    INSERT INTO Answers (ExamId, UserId, QuestionId, SessionId, AnswerText, AnswerOptionId, PointsEarned, DateCreated)
+                    VALUES (@examId, @userId, @questionId, @sessionId, @answerText, @answerOptionId, @pointsEarned, GETDATE())
+                `);
+            
+            console.log(`Inserted answer for question ${questionId} with points: ${pointsEarned}`);
         }
-
-        return res.json({ issuccess: true, message: "Answer saved successfully", pointsEarned });
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "Answer saved successfully",
+            pointsEarned: pointsEarned
+        });
+        
     } catch (err) {
         console.error("Error saving answer:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message 
+        });
     }
 });
 
+// Grade an answer (admin or teacher)
 router.post("/grade/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { pointsEarned } = req.body;
         const pool = await getPool();
-
-        const perm = checkPermission(['updateAny'], 'answers', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
-
-        await pool.query("UPDATE Answers SET PointsEarned = ? WHERE Id = ?", [pointsEarned || 0, id]);
-        return res.json({ issuccess: true, message: "Answer graded successfully" });
+        
+        const permissionResult = checkPermission(['updateAny'], 'answers', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+        
+        await pool.request()
+            .input('id', id)
+            .input('pointsEarned', pointsEarned || 0)
+            .query(`
+                UPDATE Answers 
+                SET PointsEarned = @pointsEarned
+                WHERE Id = @id
+            `);
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "Answer graded successfully" 
+        });
+        
     } catch (err) {
         console.error("Error grading answer:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message 
+        });
     }
 });
 
+// Delete an answer (admin only)
 router.delete("/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
-
-        const perm = checkPermission(['deleteAny'], 'answers', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
-
-        await pool.query("DELETE FROM Answers WHERE Id = ?", [id]);
-        return res.json({ issuccess: true, message: "Answer deleted successfully" });
+        
+        const permissionResult = checkPermission(['deleteAny'], 'answers', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+        
+        await pool.request()
+            .input('id', id)
+            .query("DELETE FROM Answers WHERE Id = @id");
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "Answer deleted successfully" 
+        });
+        
     } catch (err) {
         console.error("Error deleting answer:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message 
+        });
     }
 });
 
+// Get answers for a specific exam
 router.get("/exam/:examId", authenticateToken, async (req, res) => {
     try {
         const { examId } = req.params;
         const { sessionId } = req.query;
         const userId = req.user.Id;
         const pool = await getPool();
-
+        
         let query = `
-            SELECT a.*, q.Text AS QuestionText, q.AnswerType
+            SELECT a.*, 
+                   q.Text as QuestionText,
+                   q.AnswerType
             FROM Answers a
             JOIN Questions q ON a.QuestionId = q.Id
-            WHERE a.ExamId = ?
+            WHERE a.ExamId = @examId
         `;
-        const params = [examId];
-
-        if (sessionId) { query += " AND a.SessionId = ?"; params.push(sessionId); }
-        if (req.user.Role !== 'Administrator') { query += " AND a.UserId = ?"; params.push(userId); }
-
-        const [rows] = await pool.query(query, params);
-        return res.json({ issuccess: true, message: "", count: rows.length, answers: rows });
+        
+        let request = pool.request().input('examId', examId);
+        
+        if (sessionId) {
+            query += " AND a.SessionId = @sessionId";
+            request.input('sessionId', sessionId);
+        }
+        
+        if (req.user.Role !== 'Administrator') {
+            query += " AND a.UserId = @userId";
+            request.input('userId', userId);
+        }
+        
+        const result = await request.query(query);
+        
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: result.recordset ? result.recordset.length : 0, 
+            answers: result.recordset || [] 
+        });
+        
     } catch (err) {
         console.error("Error fetching exam answers:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, answers: [] });
+        return res.json({ 
+            issuccess: false, 
+            message: "Server Error: " + err.message, 
+            count: 0, 
+            answers: [] 
+        });
     }
 });
 

@@ -4,250 +4,415 @@ const { authenticateToken, checkPermission } = require("../middleware/_baseAPICo
 
 const router = express.Router();
 
+// Get all schools
 router.get("/", authenticateToken, async (req, res) => {
     try {
         const { requiresInvite, searchValue } = req.query;
         const pool = await getPool();
-
+        let request = pool.request();
+        
         let query = "SELECT * FROM Schools";
-        const params = [];
-        const conditions = [];
+        let conditions = [];
 
         if (requiresInvite !== undefined) {
-            conditions.push("RequiresInvite = ?");
-            params.push(requiresInvite === 'true' ? 1 : 0);
+            conditions.push("RequiresInvite = @requiresInvite");
+            request.input('requiresInvite', requiresInvite === 'true' ? 1 : 0);
         }
+        
         if (searchValue && searchValue !== "*") {
-            conditions.push("Name LIKE ?");
-            params.push(`%${searchValue}%`);
+            conditions.push("Name LIKE '%' + @searchValue + '%'");
+            request.input('searchValue', searchValue);
         }
-        if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
+        
+        if (conditions.length > 0) {
+            query += " WHERE " + conditions.join(" AND ");
+        }
+        
         query += " ORDER BY Name";
-
-        const [rows] = await pool.query(query, params);
-        return res.json({ issuccess: true, message: "", count: rows.length, schools: rows });
+        
+        const result = await request.query(query);
+        
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: result.recordset.length,
+            schools: result.recordset
+        });
     } catch (err) {
         console.error("Error fetching schools:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, schools: [] });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            schools: []
+        });
     }
 });
 
+// Get a single school by ID
 router.get("/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Schools WHERE Id = ?", [id]);
-        if (rows.length === 0) throw new Error("School not found");
+        
+        const result = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Schools WHERE Id = @id");
 
-        const perm = checkPermission(['readOwn', 'readAny'], 'schools', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("School not found");
+        }
 
-        return res.json({ issuccess: true, message: "", count: 1, school: rows[0] });
+        const permissionResult = checkPermission(['readOwn', 'readAny'], 'schools', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: 1,
+            school: result.recordset[0]
+        });
     } catch (err) {
         console.error("Error fetching school:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, school: null });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            school: null
+        });
     }
 });
 
+// Create a new school
 router.post("/create", authenticateToken, async (req, res) => {
     try {
         const { Name, Description, RequiresInvite } = req.body;
-
-        const perm = checkPermission(['createOwn', 'createAny'], 'schools', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        
+        const permissionResult = checkPermission(['createOwn', 'createAny'], 'schools', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
 
         const pool = await getPool();
         const dateCreated = new Date();
-        const reqInv = RequiresInvite !== undefined ? !!RequiresInvite : false;
 
-        const [result] = await pool.query(
-            "INSERT INTO Schools (Name, Description, RequiresInvite, DateCreated) VALUES (?, ?, ?, ?)",
-            [Name, Description || '', reqInv, dateCreated]
-        );
-
+        const result = await pool.request()
+            .input('Name', Name)
+            .input('Description', Description || '')
+            .input('RequiresInvite', RequiresInvite !== undefined ? RequiresInvite : false)
+            .input('DateCreated', dateCreated)
+            .query("INSERT INTO Schools (Name, Description, RequiresInvite, DateCreated) OUTPUT INSERTED.Id VALUES (@Name, @Description, @RequiresInvite, @DateCreated)");
+        
+        const Id = result.recordset.length > 0 ? result.recordset[0].Id : 0;
+        
         return res.json({
-            issuccess: true, message: "", count: 1,
-            school: { Id: result.insertId, Name, Description: Description || '', RequiresInvite: reqInv, DateCreated: dateCreated }
+            issuccess: true,
+            message: "",
+            count: 1,
+            school: { Id, Name, Description, RequiresInvite: RequiresInvite !== undefined ? RequiresInvite : false, DateCreated: dateCreated }
         });
     } catch (err) {
         console.error("Error creating school:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, school: null });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            school: null
+        });
     }
 });
 
+// Update a school
 router.post("/update/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { Name, Description, RequiresInvite } = req.body;
         const pool = await getPool();
+        
+        // Check if school exists
+        const checkResult = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Schools WHERE Id = @id");
 
-        const [rows] = await pool.query("SELECT * FROM Schools WHERE Id = ?", [id]);
-        if (rows.length === 0) throw new Error("School not found");
+        if (checkResult.recordset.length === 0) {
+            throw new Error("School not found");
+        }
 
-        const perm = checkPermission(['updateOwn', 'updateAny'], 'schools', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        const permissionResult = checkPermission(['updateOwn', 'updateAny'], 'schools', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
 
-        const school = rows[0];
+        const school = checkResult.recordset[0];
+        
+        await pool.request()
+            .input('id', id)
+            .input('Name', Name || school.Name)
+            .input('Description', Description !== undefined ? Description : school.Description)
+            .input('RequiresInvite', RequiresInvite !== undefined ? RequiresInvite : school.RequiresInvite)
+            .query("UPDATE Schools SET Name = @Name, Description = @Description, RequiresInvite = @RequiresInvite WHERE Id = @id");
 
-        await pool.query(
-            "UPDATE Schools SET Name = ?, Description = ?, RequiresInvite = ? WHERE Id = ?",
-            [
-                Name || school.Name,
-                Description !== undefined ? Description : school.Description,
-                RequiresInvite !== undefined ? !!RequiresInvite : school.RequiresInvite,
-                id
-            ]
-        );
+        const updatedResult = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Schools WHERE Id = @id");
 
-        const [updated] = await pool.query("SELECT * FROM Schools WHERE Id = ?", [id]);
-        return res.json({ issuccess: true, message: "", count: 1, school: updated[0] });
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: 1,
+            school: updatedResult.recordset[0]
+        });
     } catch (err) {
         console.error("Error updating school:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, school: null });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            school: null
+        });
     }
 });
 
+// Delete a school
 router.post("/delete/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
+        
+        // Check if school exists
+        const checkResult = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Schools WHERE Id = @id");
 
-        const [rows] = await pool.query("SELECT * FROM Schools WHERE Id = ?", [id]);
-        if (rows.length === 0) throw new Error("School not found");
+        if (checkResult.recordset.length === 0) {
+            throw new Error("School not found");
+        }
 
-        const perm = checkPermission(['deleteOwn', 'deleteAny'], 'schools', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        const permissionResult = checkPermission(['deleteOwn', 'deleteAny'], 'schools', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
 
-        await pool.query("DELETE FROM Schools WHERE Id = ?", [id]);
-        return res.json({ issuccess: true, message: "", count: 0, school: null });
+        // Delete the school (cascade will handle UsersSchools and SchoolSubjects)
+        await pool.request()
+            .input("id", id)
+            .query("DELETE FROM Schools WHERE Id = @id");
+        
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: 0,
+            school: null
+        });
     } catch (err) {
         console.error("Error deleting school:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, school: null });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            school: null
+        });
     }
 });
 
+// Get schools for a user
 router.get("/users/:userId/schools", authenticateToken, async (req, res) => {
     try {
         const { userId } = req.params;
         const pool = await getPool();
-
-        const [rows] = await pool.query(`
-            SELECT s.Id, s.Name, s.Description, s.RequiresInvite
-            FROM Schools s
-            JOIN UsersSchools us ON s.Id = us.SchoolId
-            WHERE us.UserId = ?
-            ORDER BY s.Name
-        `, [userId]);
-
-        return res.json({ issuccess: true, message: "", count: rows.length, schools: rows });
+        
+        const result = await pool.request()
+            .input('userId', userId)
+            .query(`
+                SELECT s.Id, s.Name, s.Description, s.RequiresInvite
+                FROM Schools s
+                JOIN UsersSchools us ON s.Id = us.SchoolId
+                WHERE us.UserId = @userId
+                ORDER BY s.Name
+            `);
+        
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: result.recordset.length,
+            schools: result.recordset
+        });
     } catch (err) {
         console.error("Error fetching user schools:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, schools: [] });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            schools: []
+        });
     }
 });
 
+// Assign user to schools
 router.post("/users/:userId/schools", authenticateToken, async (req, res) => {
-    let conn;
     try {
         const { userId } = req.params;
-        const { schoolIds } = req.body;
+        const { schoolIds } = req.body; // Array of school IDs
         const pool = await getPool();
-
-        conn = await pool.getConnection();
-        await conn.beginTransaction();
-
-        await conn.query("DELETE FROM UsersSchools WHERE UserId = ?", [userId]);
-
-        if (schoolIds && schoolIds.length > 0) {
-            for (const schoolId of schoolIds) {
-                await conn.query(
-                    "INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned) VALUES (?, ?, NOW())",
-                    [userId, schoolId]
-                );
+        
+        // Start transaction
+        const transaction = pool.transaction();
+        await transaction.begin();
+        
+        try {
+            // Remove existing school assignments
+            await transaction.request()
+                .input('userId', userId)
+                .query("DELETE FROM UsersSchools WHERE UserId = @userId");
+            
+            // Add new school assignments
+            if (schoolIds && schoolIds.length > 0) {
+                for (const schoolId of schoolIds) {
+                    await transaction.request()
+                        .input('userId', userId)
+                        .input('schoolId', schoolId)
+                        .query(`
+                            INSERT INTO UsersSchools (UserId, SchoolId, DateAssigned)
+                            VALUES (@userId, @schoolId, GETDATE())
+                        `);
+                }
             }
+            
+            await transaction.commit();
+            
+            // Get updated schools list
+            const result = await pool.request()
+                .input('userId', userId)
+                .query(`
+                    SELECT s.Id, s.Name, s.Description, s.RequiresInvite
+                    FROM Schools s
+                    JOIN UsersSchools us ON s.Id = us.SchoolId
+                    WHERE us.UserId = @userId
+                    ORDER BY s.Name
+                `);
+            
+            return res.json({
+                issuccess: true,
+                message: "Schools assigned successfully",
+                count: result.recordset.length,
+                schools: result.recordset
+            });
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
         }
-
-        await conn.commit();
-        conn.release();
-        conn = null;
-
-        const [rows] = await pool.query(`
-            SELECT s.Id, s.Name, s.Description, s.RequiresInvite
-            FROM Schools s
-            JOIN UsersSchools us ON s.Id = us.SchoolId
-            WHERE us.UserId = ?
-            ORDER BY s.Name
-        `, [userId]);
-
-        return res.json({ issuccess: true, message: "Schools assigned successfully", count: rows.length, schools: rows });
     } catch (err) {
-        if (conn) { try { await conn.rollback(); } catch {} conn.release(); }
         console.error("Error assigning user schools:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, schools: [] });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            schools: []
+        });
     }
 });
 
+// Get subjects for a school
 router.get("/:schoolId/subjects", authenticateToken, async (req, res) => {
     try {
         const { schoolId } = req.params;
         const pool = await getPool();
-
-        const [rows] = await pool.query(`
-            SELECT s.Id, s.Name, s.Description
-            FROM Subjects s
-            JOIN SchoolSubjects ss ON s.Id = ss.SubjectId
-            WHERE ss.SchoolId = ?
-            ORDER BY s.Name
-        `, [schoolId]);
-
-        return res.json({ issuccess: true, message: "", count: rows.length, subjects: rows });
+        
+        const result = await pool.request()
+            .input('schoolId', schoolId)
+            .query(`
+                SELECT s.Id, s.Name, s.Description
+                FROM Subjects s
+                JOIN SchoolSubjects ss ON s.Id = ss.SubjectId
+                WHERE ss.SchoolId = @schoolId
+                ORDER BY s.Name
+            `);
+        
+        return res.json({
+            issuccess: true,
+            message: "",
+            count: result.recordset.length,
+            subjects: result.recordset
+        });
     } catch (err) {
         console.error("Error fetching school subjects:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, subjects: [] });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            subjects: []
+        });
     }
 });
 
+// Assign subjects to a school
 router.post("/:schoolId/subjects", authenticateToken, async (req, res) => {
-    let conn;
     try {
         const { schoolId } = req.params;
-        const { subjectIds } = req.body;
+        const { subjectIds } = req.body; // Array of subject IDs
         const pool = await getPool();
-
-        const perm = checkPermission(['updateAny'], 'schools', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
-
-        conn = await pool.getConnection();
-        await conn.beginTransaction();
-
-        await conn.query("DELETE FROM SchoolSubjects WHERE SchoolId = ?", [schoolId]);
-
-        if (subjectIds && subjectIds.length > 0) {
-            for (const subjectId of subjectIds) {
-                await conn.query(
-                    "INSERT INTO SchoolSubjects (SchoolId, SubjectId, DateAssigned) VALUES (?, ?, NOW())",
-                    [schoolId, subjectId]
-                );
-            }
+        
+        const permissionResult = checkPermission(['updateAny'], 'schools', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
         }
-
-        await conn.commit();
-        conn.release();
-        conn = null;
-
-        const [rows] = await pool.query(`
-            SELECT s.Id, s.Name, s.Description
-            FROM Subjects s
-            JOIN SchoolSubjects ss ON s.Id = ss.SubjectId
-            WHERE ss.SchoolId = ?
-            ORDER BY s.Name
-        `, [schoolId]);
-
-        return res.json({ issuccess: true, message: "Subjects assigned successfully", count: rows.length, subjects: rows });
+        
+        // Start transaction
+        const transaction = pool.transaction();
+        await transaction.begin();
+        
+        try {
+            // Remove existing subject assignments
+            await transaction.request()
+                .input('schoolId', schoolId)
+                .query("DELETE FROM SchoolSubjects WHERE SchoolId = @schoolId");
+            
+            // Add new subject assignments
+            if (subjectIds && subjectIds.length > 0) {
+                for (const subjectId of subjectIds) {
+                    await transaction.request()
+                        .input('schoolId', schoolId)
+                        .input('subjectId', subjectId)
+                        .query(`
+                            INSERT INTO SchoolSubjects (SchoolId, SubjectId, DateAssigned)
+                            VALUES (@schoolId, @subjectId, GETDATE())
+                        `);
+                }
+            }
+            
+            await transaction.commit();
+            
+            // Get updated subjects list
+            const result = await pool.request()
+                .input('schoolId', schoolId)
+                .query(`
+                    SELECT s.Id, s.Name, s.Description
+                    FROM Subjects s
+                    JOIN SchoolSubjects ss ON s.Id = ss.SubjectId
+                    WHERE ss.SchoolId = @schoolId
+                    ORDER BY s.Name
+                `);
+            
+            return res.json({
+                issuccess: true,
+                message: "Subjects assigned successfully",
+                count: result.recordset.length,
+                subjects: result.recordset
+            });
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
     } catch (err) {
-        if (conn) { try { await conn.rollback(); } catch {} conn.release(); }
         console.error("Error assigning school subjects:", err);
-        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, subjects: [] });
+        return res.json({
+            issuccess: false,
+            message: "Server Error: " + err.message,
+            count: 0,
+            subjects: []
+        });
     }
 });
 

@@ -4,125 +4,176 @@ const { authenticateToken, checkPermission } = require("../middleware/_baseAPICo
 
 const router = express.Router();
 
+// Get list of questions
 router.get("/", authenticateToken, async (req, res) => {
     try {
         const { skip, limit, searchValue, sortName, sortOrder, examId } = req.query;
         const pool = await getPool();
+        const request = pool.request();
 
-        const perm = checkPermission(['readAny'], 'questions', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
-
+        const permissionResult = checkPermission(['readAny'], 'questions', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+        
         let query = "SELECT * FROM Questions";
-        const params = [];
-        const where = [];
+        let whereConditions = [];
 
         if (searchValue && searchValue !== "*") {
-            where.push("Text LIKE ?");
-            params.push(`%${searchValue}%`);
+            whereConditions.push("Text LIKE '%' + @searchValue + '%'");
+            request.input('searchValue', searchValue);
         }
+
         if (examId) {
-            where.push("ExamId = ?");
-            params.push(parseInt(examId));
+            whereConditions.push("ExamId = @examId");
+            request.input('examId', parseInt(examId));
         }
-        if (where.length > 0) query += " WHERE " + where.join(" AND ");
+
+        if (whereConditions.length > 0) {
+            query += " WHERE " + whereConditions.join(" AND ");
+        }
 
         const validSortName = sortName === "Text" ? "Text" : "Id";
-        const validOrder = sortOrder === "DESC" ? "DESC" : "ASC";
-        query += ` ORDER BY ${validSortName} ${validOrder}`;
+        const validatedSortOrder = sortOrder === "DESC" ? "DESC" : "ASC";
+        query += ` ORDER BY ${validSortName} ${validatedSortOrder}`;
 
-        const [allRows] = await pool.query(query, params);
-        const count = allRows.length;
+        let questionsResult = await request.query(query);
+        const count = questionsResult.recordset.length;
 
-        let questions = allRows;
         if (skip && limit) {
-            const [paged] = await pool.query(query + " LIMIT ? OFFSET ?",
-                [...params, parseInt(limit), parseInt(skip)]);
-            questions = paged;
+            query += " OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY";
+            request.input('skip', parseInt(skip));
+            request.input('limit', parseInt(limit));
         }
 
+        questionsResult = await request.query(query);
+        const questions = questionsResult.recordset;
+
         return res.json({ issuccess: true, message: "", count, questions });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, questions: [] });
     }
 });
 
+// Get a single question by ID
 router.get("/:id", authenticateToken, async (req, res) => {
     try {
+        const { id } = req.params;
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Questions WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Question not found");
+        const result = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Questions WHERE Id = @id");
 
-        const perm = checkPermission(['readOwn', 'readAny'], 'questions', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Question not found");
+        }
 
-        return res.json({ issuccess: true, message: "", count: 1, question: rows[0] });
+        const permissionResult = checkPermission(['readOwn', 'readAny'], 'questions', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        return res.json({ issuccess: true, message: "", count: 1, question: result.recordset[0] });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, question: null });
     }
 });
 
+// Create a new question
 router.post("/create", authenticateToken, async (req, res) => {
     try {
         const { ExamId, Text, AnswerType } = req.body;
-
-        const perm = checkPermission(['createOwn', 'createAny'], 'questions', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        const permissionResult = checkPermission(['createOwn', 'createAny'], 'questions', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
 
         const pool = await getPool();
         const dateCreated = new Date();
 
-        const [result] = await pool.query(
-            "INSERT INTO Questions (ExamId, Text, AnswerType, DateCreated) VALUES (?, ?, ?, ?)",
-            [ExamId, Text, AnswerType, dateCreated]
-        );
-
-        return res.json({
-            issuccess: true, message: "", count: 1,
-            question: { Id: result.insertId, ExamId, Text, AnswerType, DateCreated: dateCreated }
+        const result = await pool.request()
+            .input('ExamId', ExamId)
+            .input('Text', Text)
+            .input('AnswerType', AnswerType)
+            .input('DateCreated', dateCreated)
+            .query("INSERT INTO Questions (ExamId, Text, AnswerType, DateCreated) OUTPUT INSERTED.Id VALUES (@ExamId, @Text, @AnswerType, @DateCreated)");
+        
+        const Id = result.recordset.length > 0 ? result.recordset[0].Id : 0;
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 1, 
+            question: { Id, ExamId, Text, AnswerType, DateCreated: dateCreated } 
         });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, question: null });
     }
 });
 
+// Update an existing question
 router.post("/update/:id", authenticateToken, async (req, res) => {
     try {
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Questions WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Question not found");
+        const result = await pool.request()
+            .input("id", req.params.id)
+            .query("SELECT * FROM Questions WHERE Id = @id");
 
-        const perm = checkPermission(['updateOwn', 'updateAny'], 'questions', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Question not found");
+        }
 
-        const question = rows[0];
+        const permissionResult = checkPermission(['updateOwn', 'updateAny'], 'questions', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        let question = result.recordset[0];
         const { ExamId, Text, AnswerType } = req.body;
 
         question.ExamId = ExamId !== undefined ? ExamId : question.ExamId;
         question.Text = Text || question.Text;
         question.AnswerType = AnswerType !== undefined ? AnswerType : question.AnswerType;
 
-        await pool.query(
-            "UPDATE Questions SET ExamId = ?, Text = ?, AnswerType = ? WHERE Id = ?",
-            [question.ExamId, question.Text, question.AnswerType, question.Id]
-        );
+        await pool.request()
+            .input('ExamId', question.ExamId)
+            .input('Text', question.Text)
+            .input('AnswerType', question.AnswerType)
+            .input('id', question.Id)
+            .query("UPDATE Questions SET ExamId = @ExamId, Text = @Text, AnswerType = @AnswerType WHERE Id = @id");
 
         return res.json({ issuccess: true, message: "", count: 1, question });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, question: null });
     }
 });
 
+// Delete a question
 router.post("/delete/:id", authenticateToken, async (req, res) => {
     try {
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Questions WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Question not found");
+        const result = await pool.request()
+            .input("id", req.params.id)
+            .query("SELECT * FROM Questions WHERE Id = @id");
 
-        const perm = checkPermission(['deleteOwn', 'deleteAny'], 'questions', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Question not found");
+        }
 
-        await pool.query("DELETE FROM Questions WHERE Id = ?", [req.params.id]);
+        const permissionResult = checkPermission(['deleteOwn', 'deleteAny'], 'questions', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        await pool.request()
+            .input("id", req.params.id)
+            .query("DELETE FROM Questions WHERE Id = @id");
+        
         return res.json({ issuccess: true, message: "", count: 0, question: null });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, question: null });
     }

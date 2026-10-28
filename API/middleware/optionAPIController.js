@@ -4,126 +4,176 @@ const { authenticateToken, checkPermission } = require("../middleware/_baseAPICo
 
 const router = express.Router();
 
+// Get list of options
 router.get("/", authenticateToken, async (req, res) => {
     try {
         const { skip, limit, searchValue, sortName, sortOrder, questionId } = req.query;
         const pool = await getPool();
+        const request = pool.request();
 
-        const perm = checkPermission(['readAny'], 'options', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
-
+        const permissionResult = checkPermission(['readAny'], 'options', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+        
         let query = "SELECT * FROM Options";
-        const params = [];
-        const where = [];
+        let whereConditions = [];
 
         if (searchValue && searchValue !== "*") {
-            where.push("Text LIKE ?");
-            params.push(`%${searchValue}%`);
+            whereConditions.push("Text LIKE '%' + @searchValue + '%'");
+            request.input('searchValue', searchValue);
         }
+
         if (questionId) {
-            where.push("QuestionId = ?");
-            params.push(parseInt(questionId));
+            whereConditions.push("QuestionId = @questionId");
+            request.input('questionId', parseInt(questionId));
         }
-        if (where.length > 0) query += " WHERE " + where.join(" AND ");
+
+        if (whereConditions.length > 0) {
+            query += " WHERE " + whereConditions.join(" AND ");
+        }
 
         const validSortName = sortName === "Text" ? "Text" : "Id";
-        const validOrder = sortOrder === "DESC" ? "DESC" : "ASC";
-        query += ` ORDER BY ${validSortName} ${validOrder}`;
+        const validatedSortOrder = sortOrder === "DESC" ? "DESC" : "ASC";
+        query += ` ORDER BY ${validSortName} ${validatedSortOrder}`;
 
-        const [allRows] = await pool.query(query, params);
-        const count = allRows.length;
+        let optionsResult = await request.query(query);
+        const count = optionsResult.recordset.length;
 
-        let options = allRows;
         if (skip && limit) {
-            const [paged] = await pool.query(query + " LIMIT ? OFFSET ?",
-                [...params, parseInt(limit), parseInt(skip)]);
-            options = paged;
+            query += " OFFSET @skip ROWS FETCH NEXT @limit ROWS ONLY";
+            request.input('skip', parseInt(skip));
+            request.input('limit', parseInt(limit));
         }
 
+        optionsResult = await request.query(query);
+        const options = optionsResult.recordset;
+
         return res.json({ issuccess: true, message: "", count, options });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, options: [] });
     }
 });
 
+// Get a single option by ID
 router.get("/:id", authenticateToken, async (req, res) => {
     try {
+        const { id } = req.params;
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Options WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Option not found");
+        const result = await pool.request()
+            .input("id", id)
+            .query("SELECT * FROM Options WHERE Id = @id");
 
-        const perm = checkPermission(['readOwn', 'readAny'], 'options', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Option not found");
+        }
 
-        return res.json({ issuccess: true, message: "", count: 1, option: rows[0] });
+        const permissionResult = checkPermission(['readOwn', 'readAny'], 'options', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        return res.json({ issuccess: true, message: "", count: 1, option: result.recordset[0] });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, option: null });
     }
 });
 
+// Create a new option
 router.post("/create", authenticateToken, async (req, res) => {
     try {
         const { QuestionId, Text, IsCorrect } = req.body;
-
-        const perm = checkPermission(['createOwn', 'createAny'], 'options', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        const permissionResult = checkPermission(['createOwn', 'createAny'], 'options', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
 
         const pool = await getPool();
         const dateCreated = new Date();
-        const correct = IsCorrect !== undefined ? !!IsCorrect : false;
 
-        const [result] = await pool.query(
-            "INSERT INTO Options (QuestionId, Text, IsCorrect, DateCreated) VALUES (?, ?, ?, ?)",
-            [QuestionId, Text, correct, dateCreated]
-        );
-
-        return res.json({
-            issuccess: true, message: "", count: 1,
-            option: { Id: result.insertId, QuestionId, Text, IsCorrect: correct, DateCreated: dateCreated }
+        const result = await pool.request()
+            .input('QuestionId', QuestionId)
+            .input('Text', Text)
+            .input('IsCorrect', IsCorrect !== undefined ? IsCorrect : false)
+            .input('DateCreated', dateCreated)
+            .query("INSERT INTO Options (QuestionId, Text, IsCorrect, DateCreated) OUTPUT INSERTED.Id VALUES (@QuestionId, @Text, @IsCorrect, @DateCreated)");
+        
+        const Id = result.recordset.length > 0 ? result.recordset[0].Id : 0;
+        return res.json({ 
+            issuccess: true, 
+            message: "", 
+            count: 1, 
+            option: { Id, QuestionId, Text, IsCorrect: IsCorrect !== undefined ? IsCorrect : false, DateCreated: dateCreated } 
         });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, option: null });
     }
 });
 
+// Update an existing option
 router.post("/update/:id", authenticateToken, async (req, res) => {
     try {
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Options WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Option not found");
+        const result = await pool.request()
+            .input("id", req.params.id)
+            .query("SELECT * FROM Options WHERE Id = @id");
 
-        const perm = checkPermission(['updateOwn', 'updateAny'], 'options', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Option not found");
+        }
 
-        const option = rows[0];
+        const permissionResult = checkPermission(['updateOwn', 'updateAny'], 'options', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        let option = result.recordset[0];
         const { QuestionId, Text, IsCorrect } = req.body;
 
         option.QuestionId = QuestionId !== undefined ? QuestionId : option.QuestionId;
         option.Text = Text || option.Text;
-        option.IsCorrect = IsCorrect !== undefined ? !!IsCorrect : option.IsCorrect;
+        option.IsCorrect = IsCorrect !== undefined ? IsCorrect : option.IsCorrect;
 
-        await pool.query(
-            "UPDATE Options SET QuestionId = ?, Text = ?, IsCorrect = ? WHERE Id = ?",
-            [option.QuestionId, option.Text, option.IsCorrect, option.Id]
-        );
+        await pool.request()
+            .input('QuestionId', option.QuestionId)
+            .input('Text', option.Text)
+            .input('IsCorrect', option.IsCorrect)
+            .input('id', option.Id)
+            .query("UPDATE Options SET QuestionId = @QuestionId, Text = @Text, IsCorrect = @IsCorrect WHERE Id = @id");
 
         return res.json({ issuccess: true, message: "", count: 1, option });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, option: null });
     }
 });
 
+// Delete an option
 router.post("/delete/:id", authenticateToken, async (req, res) => {
     try {
         const pool = await getPool();
-        const [rows] = await pool.query("SELECT * FROM Options WHERE Id = ?", [req.params.id]);
-        if (rows.length === 0) throw new Error("Option not found");
+        const result = await pool.request()
+            .input("id", req.params.id)
+            .query("SELECT * FROM Options WHERE Id = @id");
 
-        const perm = checkPermission(['deleteOwn', 'deleteAny'], 'options', req.user);
-        if (!perm.issuccess) throw new Error(perm.message);
+        if (result.recordset.length === 0) {
+            throw new Error("Option not found");
+        }
 
-        await pool.query("DELETE FROM Options WHERE Id = ?", [req.params.id]);
+        const permissionResult = checkPermission(['deleteOwn', 'deleteAny'], 'options', req.user);
+        if (!permissionResult.issuccess) {
+            throw new Error(permissionResult.message);
+        }
+
+        await pool.request()
+            .input("id", req.params.id)
+            .query("DELETE FROM Options WHERE Id = @id");
+        
         return res.json({ issuccess: true, message: "", count: 0, option: null });
+
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, option: null });
     }
