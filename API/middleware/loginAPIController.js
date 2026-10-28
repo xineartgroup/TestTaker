@@ -1,8 +1,6 @@
 const express = require("express");
 const getPool = require('./sqlconnection');
-const bcrypt = require('bcryptjs');
-
-const { generateToken, authenticateToken, checkPermission } = require("../middleware/_baseAPIController");
+const { authenticateToken, checkPermission } = require("../middleware/_baseAPIController");
 
 const router = express.Router();
 
@@ -10,29 +8,15 @@ router.get("/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
-        const resultLogin = await pool.request()
-            .input("id", id)
-            .query("SELECT * FROM Logins WHERE id = @id");
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE Id = ?", [id]);
 
-        if (resultLogin.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.json({ issuccess: false, message: "Login not found", count: 0, login: null });
         }
 
-        const login = resultLogin.recordset[0];
-
-        return res.json({ 
-            issuccess: true, 
-            message: "", 
-            count: 1,
-            login
-        });
+        return res.json({ issuccess: true, message: "", count: 1, login: rows[0] });
     } catch (err) {
-        return res.json({ 
-            issuccess: false, 
-            message: "Server Error: " + err.message, 
-            count: 0,
-            login: null
-        });
+        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, login: null });
     }
 });
 
@@ -40,29 +24,15 @@ router.get("/getbydevice/:device", authenticateToken, async (req, res) => {
     try {
         const { device } = req.params;
         const pool = await getPool();
-        const result = await pool.request()
-            .input("device", device)
-            .query("SELECT * FROM Logins WHERE Device = @device");
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE Device = ?", [device]);
 
-        if (result.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.json({ issuccess: false, message: "Login not found", count: 0, login: null });
         }
 
-        const login = result.recordset[0];
-
-        return res.json({ 
-            issuccess: true, 
-            message: "", 
-            count: 1,
-            login
-        });
+        return res.json({ issuccess: true, message: "", count: 1, login: rows[0] });
     } catch (err) {
-        return res.json({ 
-            issuccess: false, 
-            message: "Server Error: " + err.message, 
-            count: 0,
-            login: null
-        });
+        return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, login: null });
     }
 });
 
@@ -70,40 +40,26 @@ router.get("/searchbyuser/:userId", authenticateToken, async (req, res) => {
     try {
         const { userId } = req.params;
         const pool = await getPool();
-        const result = await pool.request()
-            .input("userId", userId)
-            .query("SELECT * FROM Logins WHERE UserId = @userId");
-
-        const logins = result.recordset;
-        res.json({ issuccess: true, message: "", count: logins.length, logins });
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE UserId = ?", [userId]);
+        res.json({ issuccess: true, message: "", count: rows.length, logins: rows });
     } catch (err) {
         res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, logins: [] });
     }
 });
 
-// Added new endpoint to search by username (since we now use Users table)
 router.get("/searchbyusername/:username", authenticateToken, async (req, res) => {
     try {
         const { username } = req.params;
         const pool = await getPool();
-        
-        // First get the user ID from the username
-        const userResult = await pool.request()
-            .input("username", username)
-            .query("SELECT Id FROM Users WHERE UserName = @username");
-        
-        if (userResult.recordset.length === 0) {
+
+        const [userRows] = await pool.query("SELECT Id FROM Users WHERE UserName = ?", [username]);
+        if (userRows.length === 0) {
             return res.json({ issuccess: false, message: "User not found", count: 0, logins: [] });
         }
-        
-        const userId = userResult.recordset[0].Id;
-        
-        const result = await pool.request()
-            .input("userId", userId)
-            .query("SELECT * FROM Logins WHERE UserId = @userId");
-        
-        const logins = result.recordset;
-        res.json({ issuccess: true, message: "", count: logins.length, logins });
+
+        const userId = userRows[0].Id;
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE UserId = ?", [userId]);
+        res.json({ issuccess: true, message: "", count: rows.length, logins: rows });
     } catch (err) {
         res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, logins: [] });
     }
@@ -112,47 +68,26 @@ router.get("/searchbyusername/:username", authenticateToken, async (req, res) =>
 router.post("/create", authenticateToken, async (req, res) => {
     try {
         const { UserId, Device, Token, IsActive } = req.body;
-
-        // Validate that the user exists
         const pool = await getPool();
-        const userResult = await pool.request()
-            .input("userId", UserId)
-            .query("SELECT Id FROM Users WHERE Id = @userId");
-        
-        if (userResult.recordset.length === 0) {
+
+        const [userRows] = await pool.query("SELECT Id FROM Users WHERE Id = ?", [UserId]);
+        if (userRows.length === 0) {
             return res.json({ issuccess: false, message: "User not found", count: 0, login: null });
         }
 
-        // Check if a login already exists for this user and device
-        const existingLogin = await pool.request()
-            .input("userId", UserId)
-            .input("device", Device)
-            .query("SELECT Id FROM Logins WHERE UserId = @userId AND Device = @device");
-        
-        if (existingLogin.recordset.length > 0) {
-            return res.json({ 
-                issuccess: false, 
-                message: "Login already exists for this user and device", 
-                count: 0, 
-                login: null 
-            });
+        const [existing] = await pool.query("SELECT Id FROM Logins WHERE UserId = ? AND Device = ?", [UserId, Device]);
+        if (existing.length > 0) {
+            return res.json({ issuccess: false, message: "Login already exists for this user and device", count: 0, login: null });
         }
 
-        const result = await pool.request()
-            .input('UserId', UserId)
-            .input('Device', Device)
-            .input('Token', Token)
-            .input('IsActive', IsActive !== undefined ? IsActive : true)
-            .input('StartDate', new Date())
-            .query("INSERT INTO Logins (UserId, Device, Token, IsActive, StartDate) OUTPUT INSERTED.ID VALUES (@UserId, @Device, @Token, @IsActive, @StartDate)");
-        
-        const Id = result.recordset.length > 0 ? result.recordset[0].ID : 0;
-        
-        res.json({ 
-            issuccess: true, 
-            message: "", 
-            count: 1, 
-            login: { Id, UserId, Device, Token, IsActive: IsActive !== undefined ? IsActive : true } 
+        const [result] = await pool.query(
+            "INSERT INTO Logins (UserId, Device, Token, IsActive, StartDate) VALUES (?, ?, ?, ?, ?)",
+            [UserId, Device, Token, IsActive !== undefined ? !!IsActive : true, new Date()]
+        );
+
+        res.json({
+            issuccess: true, message: "", count: 1,
+            login: { Id: result.insertId, UserId, Device, Token, IsActive: IsActive !== undefined ? !!IsActive : true }
         });
     } catch (err) {
         res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, login: null });
@@ -162,27 +97,19 @@ router.post("/create", authenticateToken, async (req, res) => {
 router.post("/update/:id", authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
-        
         const pool = await getPool();
 
-        const resultLogin = await pool.request()
-            .input("id", id)
-            .query("SELECT * FROM Logins WHERE id = @id");
-
-        if (resultLogin.recordset.length === 0) {
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE Id = ?", [id]);
+        if (rows.length === 0) {
             return res.json({ issuccess: false, message: "No login found with ID", count: 0, login: null });
         }
-        
-        let login = resultLogin.recordset[0];
+
+        const login = rows[0];
         const { UserId, Device, Token, IsActive } = req.body;
 
-        // Validate user exists if UserId is being updated
         if (UserId && UserId !== login.UserId) {
-            const userResult = await pool.request()
-                .input("userId", UserId)
-                .query("SELECT Id FROM Users WHERE Id = @userId");
-            
-            if (userResult.recordset.length === 0) {
+            const [u] = await pool.query("SELECT Id FROM Users WHERE Id = ?", [UserId]);
+            if (u.length === 0) {
                 return res.json({ issuccess: false, message: "User not found", count: 0, login: null });
             }
         }
@@ -190,15 +117,12 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
         login.UserId = UserId !== undefined ? UserId : login.UserId;
         login.Device = Device !== undefined ? Device : login.Device;
         login.Token = Token !== undefined ? Token : login.Token;
-        login.IsActive = IsActive !== undefined ? IsActive : login.IsActive;
+        login.IsActive = IsActive !== undefined ? !!IsActive : login.IsActive;
 
-        await pool.request()
-            .input('UserId', login.UserId)
-            .input('Device', login.Device)
-            .input('Token', login.Token)
-            .input('IsActive', login.IsActive)
-            .input('id', login.Id)
-            .query(`UPDATE Logins SET UserId = @UserId, Device = @Device, Token = @Token, IsActive = @IsActive WHERE ID = @id`);
+        await pool.query(
+            "UPDATE Logins SET UserId = ?, Device = ?, Token = ?, IsActive = ? WHERE Id = ?",
+            [login.UserId, login.Device, login.Token, login.IsActive, login.Id]
+        );
 
         res.json({ issuccess: true, message: "", count: 1, login });
     } catch (err) {
@@ -206,48 +130,35 @@ router.post("/update/:id", authenticateToken, async (req, res) => {
     }
 });
 
-// Added delete endpoint
 router.post("/delete/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
 
-        const resultLogin = await pool.request()
-            .input("id", id)
-            .query("SELECT * FROM Logins WHERE id = @id");
-
-        if (resultLogin.recordset.length === 0) {
+        const [rows] = await pool.query("SELECT * FROM Logins WHERE Id = ?", [id]);
+        if (rows.length === 0) {
             return res.json({ issuccess: false, message: "Login not found", count: 0, login: null });
         }
 
-        await pool.request()
-            .input("id", id)
-            .query("DELETE FROM Logins WHERE id = @id");
-        
+        await pool.query("DELETE FROM Logins WHERE Id = ?", [id]);
         return res.json({ issuccess: true, message: "Login deleted successfully", count: 0, login: null });
-
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, login: null });
     }
 });
 
-// Added endpoint to deactivate all logins for a user
 router.post("/deactivateall/:userId", authenticateToken, async (req, res) => {
     try {
         const { userId } = req.params;
         const pool = await getPool();
 
-        const result = await pool.request()
-            .input("userId", userId)
-            .query("UPDATE Logins SET IsActive = 0 WHERE UserId = @userId");
-
-        return res.json({ 
-            issuccess: true, 
-            message: "All logins deactivated for user", 
-            count: result.rowsAffected[0] || 0,
-            logins: null 
+        const [result] = await pool.query("UPDATE Logins SET IsActive = 0 WHERE UserId = ?", [userId]);
+        return res.json({
+            issuccess: true,
+            message: "All logins deactivated for user",
+            count: result.affectedRows || 0,
+            logins: null
         });
-
     } catch (err) {
         return res.json({ issuccess: false, message: "Server Error: " + err.message, count: 0, logins: null });
     }
