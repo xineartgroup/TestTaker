@@ -2,9 +2,9 @@
   "name": "testtaker-monorepo",
   "version": "1.0.0",
   "description": "TestTaker Web, Admin, and API apps",
-  "main": "server.js",
+  "main": "app.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node app.js",
     "install-all": "cd Web && npm install && cd ../Admin && npm install && cd ../API && npm install"
   },
   "dependencies": {
