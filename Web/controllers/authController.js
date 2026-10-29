@@ -66,6 +66,9 @@ const login = async (req, res) => {
             return res.render("login", { error: result.message });
         }
     } catch (error) {
+        console.error("=== LOGIN ERROR DETAILS ===");
+        console.error(error); 
+        console.error("===========================");
         return res.render("login", { error: "Login error: " + error.message });
     }
 };

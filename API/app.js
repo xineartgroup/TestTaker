@@ -7,7 +7,7 @@ const flash = require("connect-flash");
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const admin = require('firebase-admin');
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config();
 
 const { hostname, port } = require(path.join(__dirname, 'config'));
 
@@ -27,23 +27,19 @@ const schoolapiController = require('./middleware/schoolAPIController');
 const { generateToken, authenticateToken, checkPermission } = require("./middleware/_baseAPIController");
 
 const app = express();
-app.set('trust proxy', 1); // Crucial for Azure to recognize HTTPS and session cookies correctly
+app.set('trust proxy', 1);
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 } else {
     const serviceAccount = require(path.join(__dirname, 'fcm_service_account_key.json'));
-    admin.initializeApp({
-     credential: admin.credential.cert(serviceAccount)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
 app.use(express.json());
-app.use(express.static('public')); // all static files in 'public' folder will be accessible to the app
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve uploads directory
+app.use(express.static('public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -54,28 +50,32 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// --- CRITICAL FIX: Share the MSSQL Session Store with the Web App ---
 if (process.env.NODE_ENV === 'production') {
+    const storeMSSQL = require('connect-mssql')(session);
+    
+    const dbConfig = {
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        server: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        options: { encrypt: true, trustServerCertificate: false, enableArithAbort: true },
+        port: 1433
+    };
+
     app.use(session({
         secret: process.env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
-        cookie: {
-            maxAge: 3600000, // session timeout of 60 minutes
-            secure: true,    // True in production because Azure terminates HTTPS
-            sameSite: 'none'
-        }
+        store: new storeMSSQL(dbConfig),
+        cookie: { maxAge: 3600000, secure: true, sameSite: 'none' }
     }));
-}
-else {
+} else {
     app.use(session({
         secret: process.env.SESSION_SECRET || 'dev-secret-key',
         resave: false,
         saveUninitialized: false,
-        cookie: {
-            maxAge: 3600000, // session timeout of 60 minutes
-            secure: false,   // False for local HTTP development
-            sameSite: 'none'
-        }
+        cookie: { maxAge: 3600000, secure: false, sameSite: 'none' }
     }));
 }
 
@@ -84,59 +84,48 @@ app.use(flash());
 app.use((req, res, next) => {
     res.locals.message = req.flash("message");
     res.locals.error = req.flash("error");
-    res.locals.session = req.session;  // Makes session available in all views
+    res.locals.session = req.session;
     next();
 });
 
 app.use((req, res, next) => {
-    console.log('Host: ', req.protocol + "://" + req.get('host') + req.path + ' ' + req.method);
+    console.log('API Host: ', req.protocol + "://" + req.get('host') + req.path + ' ' + req.method);
     next();
 });
 
-// --- Mount API Controller Routers ---
-app.use('/api/auth', authapiController);
-app.use('/api/logins', loginapiController);
-app.use('/api/notifications', notificationapiController);
-app.use('/api/payment', paymentapiController);
-app.use('/api/users', userapiController);
-app.use('/api/exams', examapiController);
-app.use('/api/subjects', subjectapiController);
-app.use('/api/questions', questionapiController);
-app.use('/api/options', optionapiController);
-app.use('/api/answers', answerapiController);
-app.use('/api/schools', schoolapiController);
-
-app.use('/api', (req, res) => {
-    res.status(200).json({ message: 'API is working' });
-});
-app.use((req, res) => {
-    res.status(200).json({ message: 'Site is working' });
-});
+// --- FIXED: Removed '/api' prefix because root app.js already provides it ---
+app.use('/auth', authapiController);
+app.use('/logins', loginapiController);
+app.use('/notifications', notificationapiController);
+app.use('/payment', paymentapiController);
+app.use('/users', userapiController);
+app.use('/exams', examapiController);
+app.use('/subjects', subjectapiController);
+app.use('/questions', questionapiController);
+app.use('/options', optionapiController);
+app.use('/answers', answerapiController);
+app.use('/schools', schoolapiController);
 
 // ==========================================================
-// SERVER STARTUP LOGIC (Updated for Azure Production)
+// SERVER STARTUP LOGIC
 // ==========================================================
+module.exports = app;
 
-// Azure injects process.env.PORT. We use it in production, otherwise fallback to local config port or 3000.
-const appPort = process.env.PORT || port || 3000;
+if (require.main === module) {
+    const appPort = process.env.PORT || port || 3000;
 
-if (process.env.NODE_ENV === 'production') {
-    // In Azure, HTTPS is terminated at the load balancer. 
-    // The app MUST listen on standard HTTP using the port Azure provides.
-    app.listen(appPort, () => {
-        console.log(`Production API server running on port ${appPort}`);
-    });
-}
-else {
-    // Local development: Use HTTPS with self-signed certs
-    const httpsOptions = {
-        key: fs.readFileSync('./key.pem'),
-        cert: fs.readFileSync('./cert.pem')
-    };
-
-    const server = https.createServer(httpsOptions, app);
-
-    server.listen(appPort, () => {
-        console.log(`HTTPS Development API server running on https://localhost:${appPort}`);
-    });
+    if (process.env.NODE_ENV === 'production') {
+        app.listen(appPort, () => {
+            console.log(`Production API server running on port ${appPort}`);
+        });
+    } else {
+        const httpsOptions = {
+            key: fs.readFileSync('./key.pem'),
+            cert: fs.readFileSync('./cert.pem')
+        };
+        const server = https.createServer(httpsOptions, app);
+        server.listen(appPort, () => {
+            console.log(`HTTPS Development API server running on https://localhost:${appPort}`);
+        });
+    }
 }

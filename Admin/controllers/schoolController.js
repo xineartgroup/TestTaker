@@ -17,7 +17,7 @@ const fetchSchools = async (skip, limit, req, searchValue, requiresInvite, sortN
 const schoolIndex = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
         
         const page = parseInt(req.query.page) || 1;
@@ -59,7 +59,7 @@ const schoolIndex = async (req, res) => {
 const schoolDetailGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/schools/${req.params.id}`, req);
@@ -87,7 +87,7 @@ const schoolDetailGet = async (req, res) => {
 const schoolCreateGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
         
         return res.render('schools/create', { 
@@ -103,7 +103,7 @@ const schoolCreateGet = async (req, res) => {
 const schoolCreatePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const school = req.body;
@@ -126,7 +126,7 @@ const schoolCreatePost = async (req, res) => {
 const schoolUpdateGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/schools/${req.params.id}`, req);
@@ -149,7 +149,7 @@ const schoolUpdateGet = async (req, res) => {
 const schoolUpdatePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const school = req.body;
@@ -169,7 +169,7 @@ const schoolUpdatePost = async (req, res) => {
 const schoolDeleteGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/schools/${req.params.id}`, req);
@@ -191,7 +191,7 @@ const schoolDeleteGet = async (req, res) => {
 const schoolDeletePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('POST', `/api/schools/delete/${req.params.id}`, req);
@@ -210,7 +210,7 @@ const schoolDeletePost = async (req, res) => {
 const schoolUsersGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const schoolResult = await makeApiRequest('GET', `/api/schools/${req.params.id}`, req);

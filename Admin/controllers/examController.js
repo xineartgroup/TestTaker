@@ -18,7 +18,7 @@ const requireAuth = (req, res, next) => {
         }
         
         // For page requests, redirect to login
-        return res.redirect('/login');
+        return res.redirect('/Admin/login');
     }
     
     req.user = {

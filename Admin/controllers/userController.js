@@ -14,7 +14,7 @@ const fetchUsers = async (skip, limit, req, session, searchValue, sortName, sort
 const userIndex = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
         
         const page = parseInt(req.query.page) || 1;
@@ -54,7 +54,7 @@ const userIndex = async (req, res) => {
 const userDetailGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/users/${req.params.id}`, req);
@@ -77,7 +77,7 @@ const userDetailGet = async (req, res) => {
 const userDetailPost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('POST', `/api/users/${req.params.id}`, req, req.body);
@@ -96,7 +96,7 @@ const userDetailPost = async (req, res) => {
 const userCreateGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
         
         // Fetch schools that don't require invite
@@ -117,7 +117,7 @@ const userCreateGet = async (req, res) => {
 const userCreatePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         let user = req.body;
@@ -151,7 +151,7 @@ const userCreatePost = async (req, res) => {
 const userUpdateGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/users/${req.params.id}`, req);
@@ -184,7 +184,7 @@ const userUpdateGet = async (req, res) => {
 const userUpdatePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         let user = req.body;
@@ -213,7 +213,7 @@ const userUpdatePost = async (req, res) => {
 const userDeleteGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/users/${req.params.id}`, req);
@@ -235,7 +235,7 @@ const userDeleteGet = async (req, res) => {
 const userDeletePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('POST', `/api/users/delete/${req.params.id}`, req);
@@ -254,7 +254,7 @@ const userDeletePost = async (req, res) => {
 const changePasswordGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         res.render('users/changepassword', { title: 'Change Password' });
@@ -270,7 +270,7 @@ const changePasswordGet = async (req, res) => {
 const changePasswordPost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('POST', `/api/users/changepassword/${req.session.user.Id}`, req, req.body);
@@ -296,7 +296,7 @@ const changePasswordPost = async (req, res) => {
 const userProfileGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/users/${req.session.user.Id}`, req);
@@ -318,7 +318,7 @@ const userProfileGet = async (req, res) => {
 const userProfileUpdateGet = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         const result = await makeApiRequest('GET', `/api/users/${req.session.user.Id}`, req);
@@ -340,7 +340,7 @@ const userProfileUpdateGet = async (req, res) => {
 const userProfileUpdatePost = async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) {
-            return res.redirect('/login');
+            return res.redirect('/Admin/login');
         }
 
         let user = req.body;

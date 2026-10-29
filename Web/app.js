@@ -7,7 +7,7 @@ const flash = require("connect-flash");
 const multer = require('multer');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-require('dotenv').config(); // Load environment variables from .env file
+//require('dotenv').config(); // Load environment variables from .env file
 
 const { hostname, port, apihost } = require(path.join(__dirname, 'config'));
 
@@ -26,7 +26,8 @@ const app = express();
 app.set('trust proxy', 1); // Crucial for Azure to recognize HTTPS and session cookies correctly
 
 app.set('view engine', 'ejs');
-app.set('views', 'views');
+// FIXED: Use absolute path so it works when run from the root src folder
+app.set('views', path.join(__dirname, 'views'));
 
 if (process.env.NODE_ENV === 'production') {
     const storeMSSQL = require('connect-mssql')(session);
@@ -74,7 +75,8 @@ else {
 
 app.use(cookieParser());
 app.use(express.json());
-app.use(express.static('public'));
+// FIXED: Use absolute path so it works when run from the root src folder
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors());
@@ -221,26 +223,28 @@ app.use((req, res) => {
 // SERVER STARTUP LOGIC (Updated for Azure Production)
 // ==========================================================
 
-// Azure injects process.env.PORT. We use it in production, otherwise fallback to local config port or 3000.
-const appPort = process.env.PORT || port || 3000;
+// 1. Export the app so the Master Router can use it in Azure
+module.exports = app;
 
-if (process.env.NODE_ENV === 'production') {
-    // In Azure, HTTPS is terminated at the load balancer. 
-    // The app MUST listen on standard HTTP using the port Azure provides.
-    app.listen(appPort, () => {
-        console.log(`Production server running on port ${appPort}`);
-    });
-}
-else {
-    // Local development: Use HTTPS with self-signed certs
-    const httpsOptions = {
-        key: fs.readFileSync('./key.pem'),
-        cert: fs.readFileSync('./cert.pem')
-    };
+// 2. Only start the server if this file is run directly (for your local development)
+if (require.main === module) {
+    const appPort = process.env.PORT || port || 3000;
 
-    const server = https.createServer(httpsOptions, app);
+    if (process.env.NODE_ENV === 'production') {
+        app.listen(appPort, () => {
+            console.log(`Production server running on port ${appPort}`);
+        });
+    }
+    else {
+        const httpsOptions = {
+            key: fs.readFileSync('./key.pem'),
+            cert: fs.readFileSync('./cert.pem')
+        };
 
-    server.listen(appPort, () => {
-        console.log(`HTTPS Development server running on https://localhost:${appPort}`);
-    });
+        const server = https.createServer(httpsOptions, app);
+
+        server.listen(appPort, () => {
+            console.log(`HTTPS Development server running on https://localhost:${appPort}`);
+        });
+    }
 }

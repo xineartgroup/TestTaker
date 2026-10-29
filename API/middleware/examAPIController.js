@@ -274,7 +274,7 @@ router.get("/take/:id/start", authenticateToken, async (req, res) => {
 router.get('/take/:id/question/:index', authenticateToken, async (req, res) => {
     try {
         console.log('Accessing question route for exam:', req.params.id, 'index:', req.params.index);
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         const { id, index } = req.params;
         const questionIndex = parseInt(index);

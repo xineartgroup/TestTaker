@@ -10,7 +10,7 @@ const fetchOptions = async (skip, limit, req, searchValue, sortName, sortOrder, 
 
 router.get("", async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const page = parseInt(req.query.page) || 1;
         const limit = 20; // Options readouts generally benefit from higher defaults
@@ -47,7 +47,7 @@ router.get("", async (req, res) => {
 
 router.get('/create', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         return res.render('options/create', { 
             title: 'New Option', 
             selectedQuestionId: req.query.questionId || "" 
@@ -59,7 +59,7 @@ router.get('/create', async (req, res) => {
 
 router.post('/create', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         // Treat HTML checkbox empty value scenario for bit datatype parsing
         req.body.IsCorrect = req.body.IsCorrect === 'on' || req.body.IsCorrect === true;
@@ -74,7 +74,7 @@ router.post('/create', async (req, res) => {
 
 router.get('/update/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('GET', `/api/options/${req.params.id}`, req);
         if (result.issuccess) return res.render('options/update', { title: 'Update Option', option: result.option });
         return res.render('error', { title: 'Error', detail: result.message });
@@ -85,7 +85,7 @@ router.get('/update/:id', async (req, res) => {
 
 router.post('/update/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         req.body.IsCorrect = req.body.IsCorrect === 'on' || req.body.IsCorrect === true;
 
@@ -99,7 +99,7 @@ router.post('/update/:id', async (req, res) => {
 
 router.get('/delete/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('GET', `/api/options/${req.params.id}`, req);
         if (result.issuccess) return res.render('options/delete', { title: 'Delete Option', option: result.option });
         return res.render('error', { title: 'Error', detail: result.message });
@@ -110,7 +110,7 @@ router.get('/delete/:id', async (req, res) => {
 
 router.post('/delete/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         const optionResult = await makeApiRequest('GET', `/api/options/${req.params.id}`, req);
         const questionId = optionResult.issuccess ? optionResult.option.QuestionId : "";

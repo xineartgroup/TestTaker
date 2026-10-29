@@ -1,0 +1,16 @@
+{
+  "name": "testtaker-monorepo",
+  "version": "1.0.0",
+  "description": "TestTaker Web, Admin, and API apps",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-all": "cd Web && npm install && cd ../Admin && npm install && cd ../API && npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -20,7 +20,6 @@ function decrypt(content, iv) {
     );
 
     let decrypted = decipher.update(content, 'hex', 'utf8');
-
     decrypted += decipher.final('utf8');
 
     return decrypted;
@@ -44,6 +43,10 @@ const showLoginPage = (req, res) => {
 };
 
 const login = async (req, res) => {
+    console.log("========================================");
+    console.log("!!! ADMIN LOGIN CONTROLLER EXECUTED !!!");
+    console.log("========================================");
+    
     try {
         const result = await makeApiRequest('POST', '/api/auth/login', req, req.body);
 
@@ -61,7 +64,8 @@ const login = async (req, res) => {
 
             res.header('X-Cookie-Set', 'true');
 
-            res.redirect("/");
+            // FIXED: Redirect to admin home page, not root web page
+            res.redirect("/admin/");
         } else {
             return res.render("login", { error: result.message });
         }
@@ -72,7 +76,6 @@ const login = async (req, res) => {
 
 const showRegisterPage = async (req, res) => {
     try {
-        // Removed communities - no longer needed
         return res.render("register", { error: null, config });
     } catch (error) {
         return res.render("register", { error: "Error loading registration page:" + error.message, config });
@@ -83,7 +86,6 @@ const register = async (req, res) => {
     try {
         let user = req.body;
         user.Picture = req.file ? req.file.filename : '';
-        // Generate activation token
         user.Token = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
@@ -92,7 +94,6 @@ const register = async (req, res) => {
         const result = await makeApiRequest('POST', '/api/auth/register', req, user);
 
         if (result.issuccess) {
-
             const url = `${process.env.WEB_APP_URL}/activate?token=${user.Token}`;
 
             const mail = {
@@ -122,7 +123,9 @@ const register = async (req, res) => {
             };
             const resultEmail = await sendEmailNotification(mail, req);
             const message = resultEmail.issuccess ? `Email was sent to ${result.user.Email} for activation.` : `Email was NOT sent. ${resultEmail.message}` ;
-            return res.redirect(`/login?msg=${encodeURIComponent(message)}`);
+            
+            // FIXED: Redirect to admin login
+            return res.redirect(`/admin/login?msg=${encodeURIComponent(message)}`);
         } else {
             return res.render("register", { error: "Registration Failed!!! " + result.message, config });
         }
@@ -148,7 +151,7 @@ const resetPassword = async (req, res) => {
             const result = await makeApiRequest('POST', `/api/auth/resetpassword`, req, user);
             
             if (result.issuccess) {
-                user = result.user; // password must have changed (and encrypted) at this point
+                user = result.user; 
                 user.Password = decrypt(user.Password, user.Token);
                 
                 const mail = {
@@ -184,7 +187,8 @@ const resetPassword = async (req, res) => {
                     `Password has been reset for ${user.UserName} (${user.Email})` : 
                     `Email was NOT sent. ${resultEmail.message}`;
                     
-                return res.redirect(`/login?msg=${encodeURIComponent(message)}`);
+                // FIXED: Redirect to admin login
+                return res.redirect(`/admin/login?msg=${encodeURIComponent(message)}`);
             } else {
                 return res.render("resetpassword", { error: "Couldn't change password. " + result.message, config });
             }
@@ -216,7 +220,7 @@ const logout = (req, res) => {
             console.log(err);
         } else {
             res.clearCookie('token');
-            res.redirect('/login');
+            res.redirect('/admin/login');
         }
     });
 };

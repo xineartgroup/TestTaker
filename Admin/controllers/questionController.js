@@ -10,7 +10,7 @@ const fetchQuestions = async (skip, limit, req, searchValue, sortName, sortOrder
 
 router.get("", async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
@@ -57,7 +57,7 @@ router.get("", async (req, res) => {
 
 router.get('/create', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const examsResult = await makeApiRequest('GET', '/api/exams?skip=0&limit=1000', req);
         
         return res.render('questions/create', { 
@@ -73,7 +73,7 @@ router.get('/create', async (req, res) => {
 
 router.post('/create', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('POST', '/api/questions/create', req, req.body);
         if (result.issuccess) return res.redirect(`/questions?examId=${req.body.ExamId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
@@ -84,7 +84,7 @@ router.post('/create', async (req, res) => {
 
 router.get('/update/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         // Fetch the question
         const questionResult = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);
@@ -112,7 +112,7 @@ router.get('/update/:id', async (req, res) => {
 
 router.post('/update/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('POST', `/api/questions/update/${req.params.id}`, req, req.body);
         if (result.issuccess) return res.redirect(`/questions?examId=${result.question.ExamId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
@@ -123,7 +123,7 @@ router.post('/update/:id', async (req, res) => {
 
 router.get('/delete/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         // Fetch the question
         const questionResult = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);
@@ -156,7 +156,7 @@ router.get('/delete/:id', async (req, res) => {
 
 router.post('/delete/:id', async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         // Fetch to identify context redirect path before executing delete
         const questionResult = await makeApiRequest('GET', `/api/questions/${req.params.id}`, req);

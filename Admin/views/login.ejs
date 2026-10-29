@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Admin Login</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+    <div class="info-message">
+       <h1 style="color: purple; font-size: 50px;">ADMIN LOGIN</h1>
+    </div>
+
     <div class="login-container">
-        <h2>Login</h2>
+        <h2>Admin Login</h2>
 
         <% if (error) { %>
             <div class="error-message"><%= error %></div>
@@ -18,7 +22,8 @@
             <div class="info-message"><%= message %></div>
         <% } %>
 
-        <form action="/login" method="POST">
+        <!-- FIXED: Added /admin to the form action -->
+        <form action="/admin/login" method="POST">
             <div class="form-group">
                 <label for="UserName">Username:</label>
                 <input type="text" id="UserName" name="UserName" required />
@@ -34,13 +39,15 @@
             </div>
 
             <div class="form-buttons">
-                <p>Forgot Password? <a href="/resetpassword">Change</a></p>
+                <!-- FIXED: Added /admin to the link -->
+                <p>Forgot Password? <a href="/admin/resetpassword">Change</a></p>
             </div>
         </form>
     </div>
 
     <div class="form-buttons">
-        <p>No account? <a href="/register">Register here</a></p>
+        <!-- FIXED: Added /admin to the link -->
+        <p>No account? <a href="/admin/register">Register here</a></p>
     </div>
 </body>
 </html>

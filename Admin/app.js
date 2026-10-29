@@ -7,7 +7,6 @@ const flash = require("connect-flash");
 const multer = require('multer');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-require('dotenv').config(); // Load environment variables from .env file
 
 const { hostname, port, apihost } = require(path.join(__dirname, 'config'));
 
@@ -20,13 +19,12 @@ const optionController = require('./controllers/optionController');
 const answerController = require('./controllers/answerController');
 const schoolController = require('./controllers/schoolController');
 
-const { makeApiRequest } = require("./controllers/_baseController");
-
 const app = express();
-app.set('trust proxy', 1); // Crucial for Azure to recognize HTTPS and session cookies correctly
+app.set('trust proxy', 1); 
 
 app.set('view engine', 'ejs');
-app.set('views', 'views');
+// This ensures it looks in Admin/views, NOT the root views folder
+app.set('views', path.join(__dirname, 'views'));
 
 if (process.env.NODE_ENV === 'production') {
     const storeMSSQL = require('connect-mssql')(session);
@@ -45,24 +43,26 @@ if (process.env.NODE_ENV === 'production') {
     };
 
     app.use(session({
-        secret: process.env.SESSION_SECRET,
+        secret: process.env.SESSION_SECRET_ADMIN,
         resave: false,
         saveUninitialized: false,
-        name: 'admin.sid',
+        name: 'admin.sid', // Unique cookie name for Admin
         store: new storeMSSQL(dbConfig),
         cookie: {
             httpOnly: true,
             maxAge: 3600000,
             sameSite: 'none',
-            secure: true // True in production because Azure terminates HTTPS
+            secure: true 
         }
     }));
 }
 else {
     app.use(session({
-        secret: '67b8621fc96406bd6cd2fc11',
+        // Added fallback so it doesn't crash if the env var is missing in dev
+        secret: process.env.SESSION_SECRET_ADMIN || 'admin-dev-secret-key-123', 
         resave: false,
         saveUninitialized: false,
+        name: 'admin.sid', // Unique cookie name for Admin
         cookie: {
             httpOnly: true,
             maxAge: 3600000,
@@ -74,7 +74,7 @@ else {
 
 app.use(cookieParser());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors());
@@ -91,7 +91,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
     if (req.path !== '/favicon.ico' && req.path.endsWith('.png') === false && req.path.endsWith('.json') === false) {
-        console.log('Host: ', req.hostname + ' ' + req.path + ' ' + req.method);
+        console.log('Admin Host: ', req.hostname + ' ' + req.path + ' ' + req.method);
     }
     next();
 });
@@ -125,9 +125,7 @@ app.post('/upload', upload.single('image'), (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
-
     console.log('File uploaded successfully:', req.file);
-
     res.status(200).json({
         message: 'File uploaded successfully!',
         fileName: req.file.filename,
@@ -147,7 +145,8 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/', async (req, res) => {
-    if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+    // FIXED: Lowercase '/admin/login' to match the root app's mount point
+    if (!req.session || !req.session.isLoggedIn) return res.redirect('/admin/login');
     
     try {
         const user = req.session.user;
@@ -218,29 +217,26 @@ app.use((req, res) => {
 });
 
 // ==========================================================
-// SERVER STARTUP LOGIC (Updated for Azure Production)
+// SERVER STARTUP LOGIC
 // ==========================================================
+module.exports = app;
 
-// Azure injects process.env.PORT. We use it in production, otherwise fallback to local config port or 3000.
-const appPort = process.env.PORT || port || 3000;
-
-if (process.env.NODE_ENV === 'production') {
-    // In Azure, HTTPS is terminated at the load balancer. 
-    // The app MUST listen on standard HTTP using the port Azure provides.
-    app.listen(appPort, () => {
-        console.log(`Production server running on port ${appPort}`);
-    });
-}
-else {
-    // Local development: Use HTTPS with self-signed certs
-    const httpsOptions = {
-        key: fs.readFileSync('./key.pem'),
-        cert: fs.readFileSync('./cert.pem')
-    };
-
-    const server = https.createServer(httpsOptions, app);
-
-    server.listen(appPort, () => {
-        console.log(`HTTPS Development server running on https://localhost:${appPort}`);
-    });
+if (require.main === module) {
+    const appPort = process.env.PORT || port || 3000;
+    
+    if (process.env.NODE_ENV === 'production') {
+        app.listen(appPort, () => {
+            console.log(`Production Admin server running on port ${appPort}`);
+        });
+    }
+    else {
+        const httpsOptions = {
+            key: fs.readFileSync('./key.pem'),
+            cert: fs.readFileSync('./cert.pem')
+        };
+        const server = https.createServer(httpsOptions, app);
+        server.listen(appPort, () => {
+            console.log(`HTTPS Development Admin server running on https://localhost:${appPort}`);
+        });
+    }
 }

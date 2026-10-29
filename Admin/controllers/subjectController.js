@@ -9,7 +9,7 @@ const fetchSubjects = async (skip, limit, req, searchValue, sortName, sortOrder)
 // Index page - list all subjects
 const subjectIndex = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
@@ -44,14 +44,14 @@ const subjectIndex = async (req, res) => {
 
 // Create subject page
 const subjectCreateGet = async (req, res) => {
-    if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+    if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
     return res.render('subjects/create', { title: 'New Subject' });
 };
 
 // Create subject POST
 const subjectCreatePost = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const result = await makeApiRequest('POST', '/api/subjects/create', req, req.body);
         if (result.issuccess) {
@@ -67,7 +67,7 @@ const subjectCreatePost = async (req, res) => {
 // Update subject page
 const subjectUpdateGet = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const result = await makeApiRequest('GET', `/api/subjects/${req.params.id}`, req);
         if (result.issuccess) {
@@ -83,7 +83,7 @@ const subjectUpdateGet = async (req, res) => {
 // Update subject POST
 const subjectUpdatePost = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const result = await makeApiRequest('POST', `/api/subjects/update/${req.params.id}`, req, req.body);
         if (result.issuccess) {
@@ -99,7 +99,7 @@ const subjectUpdatePost = async (req, res) => {
 // Delete subject page
 const subjectDeleteGet = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const result = await makeApiRequest('GET', `/api/subjects/${req.params.id}`, req);
         if (result.issuccess) {
@@ -115,7 +115,7 @@ const subjectDeleteGet = async (req, res) => {
 // Delete subject POST
 const subjectDeletePost = async (req, res) => {
     try {
-        if (!req.session || !req.session.isLoggedIn) return res.redirect('/login');
+        if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
 
         const result = await makeApiRequest('POST', `/api/subjects/delete/${req.params.id}`, req);
         if (result.issuccess) {
