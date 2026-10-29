@@ -30,7 +30,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 if (process.env.NODE_ENV === 'production') {
-    const storeMSSQL = require('connect-mssql')(session);
+    const storeMSSQL = require('connect-mssql-v2')(session);
     
     const dbConfig = {
         user: process.env.DB_USER,

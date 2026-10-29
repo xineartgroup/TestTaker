@@ -6,7 +6,7 @@ const session = require('express-session');
 const flash = require("connect-flash");
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const admin = require('firebase-admin');
+//const admin = require('firebase-admin');
 require('dotenv').config();
 
 const { hostname, port } = require(path.join(__dirname, 'config'));
@@ -29,24 +29,15 @@ const { generateToken, authenticateToken, checkPermission } = require("./middlew
 const app = express();
 app.set('trust proxy', 1);
 
+/*
 if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-        console.log("Firebase initialized successfully from Azure environment variable.");
-    } catch (err) {
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", err.message);
-    }
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 } else {
-    try {
-        // This require is safely trapped. It will only run if the env var is missing.
-        const serviceAccount = require(path.join(__dirname, 'fcm_service_account_key.json'));
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-        console.log("Firebase initialized from local file.");
-    } catch (err) {
-        console.log("Firebase service account key not found. Skipping Firebase initialization.");
-    }
+    const serviceAccount = require(path.join(__dirname, 'fcm_service_account_key.json'));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
+*/
 
 app.use(express.json());
 app.use(express.static('public'));
@@ -63,7 +54,7 @@ app.use(cors({
 
 // --- CRITICAL FIX: Share the MSSQL Session Store with the Web App ---
 if (process.env.NODE_ENV === 'production') {
-    const storeMSSQL = require('connect-mssql')(session);
+    const storeMSSQL = require('connect-mssql-v2')(session);
     
     const dbConfig = {
         user: process.env.DB_USER,
