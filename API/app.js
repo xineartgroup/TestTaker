@@ -30,11 +30,22 @@ const app = express();
 app.set('trust proxy', 1);
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        console.log("Firebase initialized successfully from Azure environment variable.");
+    } catch (err) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", err.message);
+    }
 } else {
-    const serviceAccount = require(path.join(__dirname, 'fcm_service_account_key.json'));
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    try {
+        // This require is safely trapped. It will only run if the env var is missing.
+        const serviceAccount = require(path.join(__dirname, 'fcm_service_account_key.json'));
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        console.log("Firebase initialized from local file.");
+    } catch (err) {
+        console.log("Firebase service account key not found. Skipping Firebase initialization.");
+    }
 }
 
 app.use(express.json());
