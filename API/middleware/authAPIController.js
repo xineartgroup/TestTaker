@@ -41,6 +41,10 @@ function encrypt(text) {
 
 // Login endpoint - updated to use Users table
 router.post('/login', async (req, res) => {
+    console.log("=== API APP LOGIN ===");
+    console.log("API REQ BODY:", req.body);
+    console.log("=====================");
+    
     try {
         const { UserName, Password } = req.body;
 
@@ -53,9 +57,6 @@ router.post('/login', async (req, res) => {
 
         if (user) {
             const isMatch = await bcrypt.compare(Password, user.Password);
-            console.log(`${Password}`);
-            console.log(`${user.Password}`);
-            console.log(`${isMatch}`);
             if (isMatch) {
                 if (user.IsActive) {
                     const token = generateToken(user.Id, user.Role, 0);

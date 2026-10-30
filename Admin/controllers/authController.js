@@ -43,9 +43,9 @@ const showLoginPage = (req, res) => {
 };
 
 const login = async (req, res) => {
-    console.log("========================================");
-    console.log("!!! ADMIN LOGIN CONTROLLER EXECUTED !!!");
-    console.log("========================================");
+    console.log("=== WEB APP LOGIN ===");
+    console.log("WEB REQ BODY:", req.body);
+    console.log("=====================");
     
     try {
         const result = await makeApiRequest('POST', '/api/auth/login', req, req.body);
