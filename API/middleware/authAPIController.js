@@ -53,12 +53,14 @@ router.post('/login', async (req, res) => {
 
         if (user) {
             const isMatch = await bcrypt.compare(Password, user.Password);
+            console.log(`${Password}`);
+            console.log(`${user.Password}`);
+            console.log(`${isMatch}`);
             if (isMatch) {
                 if (user.IsActive) {
                     const token = generateToken(user.Id, user.Role, 0);
                     
-                    // Remove password before sending response
-                    delete user.Password;
+                    delete user.Password; // Remove password before sending response
                     
                     return res.json({ issuccess: true, message: "", count: 1, token, user });
                 }
