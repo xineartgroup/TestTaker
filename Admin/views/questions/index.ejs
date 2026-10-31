@@ -13,13 +13,13 @@
                 <% } %>
             </div>
             <div class="header-actions">
-                <a href="/exams/update/<%= examId %>" class="btn btn-secondary">← Back to Exams</a>
-                <a href="/questions/create?examId=<%= examId %>" class="btn btn-primary">+ Add New Question</a>
+                <a href="/admin/exams/update/<%= examId %>" class="btn btn-secondary">← Back to Exams</a>
+                <a href="/admin/questions/create?examId=<%= examId %>" class="btn btn-primary">+ Add New Question</a>
             </div>
         </div>
 
         <!-- Search Form -->
-        <form action="/questions" method="GET" class="form-search">
+        <form action="/admin/questions" method="GET" class="form-search">
             <input type="text" id="searchValue" name="searchValue" placeholder="Search questions..." value="<%= searchValue %>">
             <input type="hidden" name="examId" value="<%= examId %>">
             <button type="submit">
@@ -29,7 +29,7 @@
                 </svg>
             </button>
             <% if (searchValue) { %>
-                <a href="/questions?examId=<%= examId %>" class="btn-clear-search">✕</a>
+                <a href="/admin/questions?examId=<%= examId %>" class="btn-clear-search">✕</a>
             <% } %>
         </form>
 
@@ -40,7 +40,7 @@
                     <tr>
                         <th>Question</th>
                         <th style="width: 140px;">
-                            <a href="/questions?sortName=AnswerType&sortOrder=<%= sortName === 'AnswerType' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %><%= examId ? '&examId=' + examId : '' %>">
+                            <a href="/admin/questions?sortName=AnswerType&sortOrder=<%= sortName === 'AnswerType' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %><%= examId ? '&examId=' + examId : '' %>">
                                 Type
                                 <% if (sortName === 'AnswerType') { %>
                                     <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
@@ -64,8 +64,8 @@
                                 <% } %>
                             </td>
                             <td class="actions">
-                                <a href="/questions/update/<%= question.Id %>" class="btn-icon btn-edit" title="Edit">✏️</a>
-                                <a href="/questions/delete/<%= question.Id %>" class="btn-icon btn-delete" title="Delete">🗑️</a>
+                                <a href="/admin/questions/update/<%= question.Id %>" class="btn-icon btn-edit" title="Edit">✏️</a>
+                                <a href="/admin/questions/delete/<%= question.Id %>" class="btn-icon btn-delete" title="Delete">🗑️</a>
                             </td>
                         </tr>
                     <% }) %>
@@ -76,21 +76,21 @@
             <% if (totalPages > 1) { %>
                 <div class="pagination">
                     <% if (currentPage > 1) { %>
-                        <a href="/questions?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="prev">‹</a>
+                        <a href="/admin/questions?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="prev">‹</a>
                     <% } %>
                     
                     <% for (let i = 1; i <= totalPages; i++) { %>
                         <% if (i === currentPage) { %>
                             <span class="active"><%= i %></span>
                         <% } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) { %>
-                            <a href="/questions?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>"><%= i %></a>
+                            <a href="/admin/questions?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>"><%= i %></a>
                         <% } else if (i === currentPage - 3 || i === currentPage + 3) { %>
                             <span class="ellipsis">…</span>
                         <% } %>
                     <% } %>
                     
                     <% if (currentPage < totalPages) { %>
-                        <a href="/questions?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="next">›</a>
+                        <a href="/admin/questions?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %><%= examId ? '&examId=' + examId : '' %>" class="next">›</a>
                     <% } %>
                 </div>
             <% } %>
@@ -100,10 +100,10 @@
                 <h3>No Questions Found</h3>
                 <p><%= searchValue ? `No questions found matching "${searchValue}"` : 'This exam has no questions yet. Click "Add New Question" to create your first question.' %></p>
                 <% if (searchValue) { %>
-                    <a href="/questions?examId=<%= examId %>" class="btn btn-secondary">Clear Search</a>
+                    <a href="/admin/questions?examId=<%= examId %>" class="btn btn-secondary">Clear Search</a>
                 <% } %>
                 <% if (!searchValue) { %>
-                    <a href="/questions/create?examId=<%= examId %>" class="btn btn-primary" style="margin-top: 10px;">+ Add First Question</a>
+                    <a href="/admin/questions/create?examId=<%= examId %>" class="btn btn-primary" style="margin-top: 10px;">+ Add First Question</a>
                 <% } %>
             </div>
         <% } %>

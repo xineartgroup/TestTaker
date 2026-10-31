@@ -127,7 +127,7 @@ router.post('/grade/:id', requireAuth, async (req, res) => {
             });
         }
         
-        return res.redirect('/answers/my-answers');
+        return res.redirect('/Admin/answers/my-answers');
         
     } catch (error) {
         return res.render('error', { 

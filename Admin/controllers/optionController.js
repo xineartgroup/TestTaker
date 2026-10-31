@@ -65,7 +65,7 @@ router.post('/create', async (req, res) => {
         req.body.IsCorrect = req.body.IsCorrect === 'on' || req.body.IsCorrect === true;
 
         const result = await makeApiRequest('POST', '/api/options/create', req, req.body);
-        if (result.issuccess) return res.redirect(`/options?questionId=${req.body.QuestionId || ''}`);
+        if (result.issuccess) return res.redirect(`/Admin/options?questionId=${req.body.QuestionId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -90,7 +90,7 @@ router.post('/update/:id', async (req, res) => {
         req.body.IsCorrect = req.body.IsCorrect === 'on' || req.body.IsCorrect === true;
 
         const result = await makeApiRequest('POST', `/api/options/update/${req.params.id}`, req, req.body);
-        if (result.issuccess) return res.redirect(`/options?questionId=${result.option.QuestionId || ''}`);
+        if (result.issuccess) return res.redirect(`/Admin/options?questionId=${result.option.QuestionId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -116,7 +116,7 @@ router.post('/delete/:id', async (req, res) => {
         const questionId = optionResult.issuccess ? optionResult.option.QuestionId : "";
 
         const result = await makeApiRequest('POST', `/api/options/delete/${req.params.id}`, req);
-        if (result.issuccess) return res.redirect(`/options?questionId=${questionId}`);
+        if (result.issuccess) return res.redirect(`/Admin/options?questionId=${questionId}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });

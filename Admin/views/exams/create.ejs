@@ -11,7 +11,7 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/exams/create" method="POST">
+        <form action="/admin/exams/create" method="POST">
             <div class="form-group">
                 <label for="Name">Exam Name:</label>
                 <input type="text" id="Name" name="Name" placeholder="Enter exam name..." required>
@@ -69,7 +69,7 @@
 
             <div class="form-buttons">
                 <button type="submit">Create Exam</button>
-                <a href="/exams" class="cancel-button">Cancel</a>
+                <a href="/admin/" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>

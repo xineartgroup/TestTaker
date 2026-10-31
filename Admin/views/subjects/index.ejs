@@ -7,11 +7,11 @@
     <div class="table-container">
         <div class="table-header">
             <h2><%= title %></h2>
-            <a href="/subjects/create" class="btn btn-primary">+ Add New Subject</a>
+            <a href="/admin/subjects/create" class="btn btn-primary">+ Add New Subject</a>
         </div>
 
         <!-- Search Form -->
-        <form action="/subjects" method="GET" class="form-search">
+        <form action="/admin/subjects" method="GET" class="form-search">
             <input type="text" id="searchValue" name="searchValue" placeholder="Search subjects..." value="<%= searchValue %>">
             <button type="submit">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -27,7 +27,7 @@
                 <thead>
                     <tr>
                         <th>
-                            <a href="/subjects?sortName=Id&sortOrder=<%= sortName === 'Id' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
+                            <a href="/admin/subjects?sortName=Id&sortOrder=<%= sortName === 'Id' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
                                 ID
                                 <% if (sortName === 'Id') { %>
                                     <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
@@ -35,7 +35,7 @@
                             </a>
                         </th>
                         <th>
-                            <a href="/subjects?sortName=Name&sortOrder=<%= sortName === 'Name' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
+                            <a href="/admin/subjects?sortName=Name&sortOrder=<%= sortName === 'Name' && sortOrder === 'asc' ? 'desc' : 'asc' %>&searchValue=<%= searchValue %>">
                                 Name
                                 <% if (sortName === 'Name') { %>
                                     <span class="sort-indicator"><%= sortOrder === 'asc' ? '↑' : '↓' %></span>
@@ -55,10 +55,10 @@
                             <td><%= subject.Description || 'N/A' %></td>
                             <td><%= subject.DateCreated ? new Date(subject.DateCreated).toLocaleDateString() : 'N/A' %></td>
                             <td class="actions">
-                                <a href="/subjects/update/<%= subject.Id %>" class="table-button btn-edit" title="Edit">
+                                <a href="/admin/subjects/update/<%= subject.Id %>" class="table-button btn-edit" title="Edit">
                                     ✏️
                                 </a>
-                                <a href="/subjects/delete/<%= subject.Id %>" class="table-button btn-delete" title="Delete">
+                                <a href="/admin/subjects/delete/<%= subject.Id %>" class="table-button btn-delete" title="Delete">
                                     🗑️
                                 </a>
                             </td>
@@ -71,21 +71,21 @@
             <% if (totalPages > 1) { %>
                 <div class="pagination">
                     <% if (currentPage > 1) { %>
-                        <a href="/subjects?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="prev">‹</a>
+                        <a href="/admin/subjects?page=<%= currentPage - 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="prev">‹</a>
                     <% } %>
                     
                     <% for (let i = 1; i <= totalPages; i++) { %>
                         <% if (i === currentPage) { %>
                             <span class="active"><%= i %></span>
                         <% } else if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) { %>
-                            <a href="/subjects?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>"><%= i %></a>
+                            <a href="/admin/subjects?page=<%= i %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>"><%= i %></a>
                         <% } else if (i === currentPage - 3 || i === currentPage + 3) { %>
                             <span class="ellipsis">…</span>
                         <% } %>
                     <% } %>
                     
                     <% if (currentPage < totalPages) { %>
-                        <a href="/subjects?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="next">›</a>
+                        <a href="/admin/subjects?page=<%= currentPage + 1 %>&searchValue=<%= searchValue %>&sortName=<%= sortName %>&sortOrder=<%= sortOrder %>" class="next">›</a>
                     <% } %>
                 </div>
             <% } %>
@@ -95,7 +95,7 @@
                 <h3>No Subjects Found</h3>
                 <p><%= searchValue ? `No subjects found matching "${searchValue}"` : 'Click "Add New Subject" to create your first subject.' %></p>
                 <% if (searchValue) { %>
-                    <a href="/subjects" class="btn btn-secondary">Clear Search</a>
+                    <a href="/admin/subjects" class="btn btn-secondary">Clear Search</a>
                 <% } %>
             </div>
         <% } %>

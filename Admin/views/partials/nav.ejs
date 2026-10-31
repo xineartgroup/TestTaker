@@ -1,7 +1,7 @@
 <nav class="main-nav">
     <div class="nav-container">
         <div class="nav-brand">
-            <a href="/" class="brand-link">
+            <a href="/admin/" class="brand-link">
                 <span class="brand-icon">📝</span>
                 <span class="brand-text">Test Taker Admin</span>
             </a>
@@ -26,19 +26,19 @@
                         </button>
                         <ul class="nav-dropdown-menu" id="adminDropdownMenu">
                             <li>
-                                <a href="/users" class="dropdown-item">
+                                <a href="/admin/users" class="dropdown-item">
                                     <span class="dropdown-icon">👥</span>
                                     Users
                                 </a>
                             </li>
                             <li>
-                                <a href="/subjects" class="dropdown-item">
+                                <a href="/admin/subjects" class="dropdown-item">
                                     <span class="dropdown-icon">📚</span>
                                     Subjects
                                 </a>
                             </li>
                             <li>
-                                <a href="/exams/create" class="dropdown-item">
+                                <a href="/admin/exams/create" class="dropdown-item">
                                     <span class="dropdown-icon">📚</span>
                                     Add Exam
                                 </a>
@@ -58,7 +58,7 @@
                         </button>
                         <ul class="nav-dropdown-menu" id="teacherDropdownMenu">
                             <li>
-                                <a href="/questions" class="dropdown-item">
+                                <a href="/admin/questions" class="dropdown-item">
                                     <span class="dropdown-icon">❓</span>
                                     Questions
                                 </a>
@@ -83,13 +83,13 @@
                         </button>
                         <ul class="user-dropdown-menu" id="userDropdownMenu">
                             <li>
-                                <a href="/users/update/<%= session.user ? session.user.Id : '0' %>" class="dropdown-item">
+                                <a href="/admin/users/update/<%= session.user ? session.user.Id : '0' %>" class="dropdown-item">
                                     <span class="dropdown-icon">👤</span>
                                     My Profile
                                 </a>
                             </li>
                             <li>
-                                <a href="/users/changepassword" class="dropdown-item">
+                                <a href="/admin/users/changepassword" class="dropdown-item">
                                     <span class="dropdown-icon">🔒</span>
                                     Change Password
                                 </a>
@@ -101,7 +101,7 @@
                 <!-- Logout -->
                 <li class="nav-item nav-item-divider"></li>
                 <li class="nav-item nav-item-logout">
-                    <a href="/logout" class="dropdown-item dropdown-item-danger">
+                    <a href="/admin/logout" class="dropdown-item dropdown-item-danger">
                         <span class="dropdown-icon">🚪</span>
                         Logout
                     </a>
@@ -109,13 +109,13 @@
             <% } else { %>
                 <!-- Guest Navigation -->
                 <li class="nav-item">
-                    <a href="/login" class="nav-link">
+                    <a href="/admin/login" class="nav-link">
                         <span class="nav-icon">🔑</span>
                         <span class="nav-text">Login</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="/register" class="nav-link nav-link-register">
+                    <a href="/admin/register" class="nav-link nav-link-register">
                         <span class="nav-icon">📝</span>
                         <span class="nav-text">Register</span>
                     </a>

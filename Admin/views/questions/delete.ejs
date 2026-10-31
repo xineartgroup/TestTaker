@@ -49,10 +49,10 @@
         </div>
 
         <div class="form-buttons">
-            <form action="/questions/delete/<%= question.Id %>" method="POST" style="display: inline-block;">
+            <form action="/admin/questions/delete/<%= question.Id %>" method="POST" style="display: inline-block;">
                 <button type="submit" class="btn btn-danger">Yes, Delete Question</button>
             </form>
-            <a href="/questions?examId=<%= question.ExamId || '' %>" class="cancel-button">Cancel</a>
+            <a href="/admin/questions?examId=<%= question.ExamId || '' %>" class="cancel-button">Cancel</a>
         </div>
     </div>
 

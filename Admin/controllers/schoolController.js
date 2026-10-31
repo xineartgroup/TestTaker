@@ -110,7 +110,7 @@ const schoolCreatePost = async (req, res) => {
         const result = await makeApiRequest('POST', '/api/schools/create', req, school);
         
         if (result.issuccess) {
-            return res.redirect('/schools');
+            return res.redirect('/Admin/schools');
         } else {
             return res.render('schools/create', { 
                 title: 'New School',
@@ -156,7 +156,7 @@ const schoolUpdatePost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/schools/update/${req.params.id}`, req, school);
         
         if (result.issuccess) {
-            return res.redirect('/schools');
+            return res.redirect('/Admin/schools');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -197,7 +197,7 @@ const schoolDeletePost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/schools/delete/${req.params.id}`, req);
         
         if (result.issuccess) {
-            return res.redirect('/schools');
+            return res.redirect('/Admin/schools');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }

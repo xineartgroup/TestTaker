@@ -11,34 +11,20 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/subjects/update/<%= subject.Id %>" method="POST">
+        <form action="/admin/subjects/update/<%= subject.Id %>" method="POST">
             <div class="form-group">
-                <label for="Id">ID:</label>
-                <p><%= subject.Id %></p>
-            </div>
-
-            <div class="form-group">
-                <label for="Name">Subject Name:</label>
+                <label for="Name">Name:</label>
                 <input type="text" id="Name" name="Name" value="<%= subject.Name %>" required>
-                <span class="hint">Enter a clear and descriptive subject name</span>
             </div>
 
             <div class="form-group">
                 <label for="Description">Description:</label>
                 <textarea id="Description" name="Description" rows="4"><%= subject.Description || '' %></textarea>
-                <span class="hint">Optional: Provide a brief description of the subject</span>
             </div>
-
-            <% if (subject.DateCreated) { %>
-                <div class="form-group">
-                    <label>Date Created:</label>
-                    <p><%= new Date(subject.DateCreated).toLocaleString() %></p>
-                </div>
-            <% } %>
 
             <div class="form-buttons">
                 <button type="submit">Update Subject</button>
-                <a href="/subjects" class="cancel-button">Cancel</a>
+                <a href="/admin/subjects" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>

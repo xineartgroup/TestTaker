@@ -55,7 +55,7 @@ const subjectCreatePost = async (req, res) => {
 
         const result = await makeApiRequest('POST', '/api/subjects/create', req, req.body);
         if (result.issuccess) {
-            return res.redirect('/subjects');
+            return res.redirect('/Admin/subjects');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -87,7 +87,7 @@ const subjectUpdatePost = async (req, res) => {
 
         const result = await makeApiRequest('POST', `/api/subjects/update/${req.params.id}`, req, req.body);
         if (result.issuccess) {
-            return res.redirect('/subjects');
+            return res.redirect('/Admin/subjects');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -119,7 +119,7 @@ const subjectDeletePost = async (req, res) => {
 
         const result = await makeApiRequest('POST', `/api/subjects/delete/${req.params.id}`, req);
         if (result.issuccess) {
-            return res.redirect('/subjects');
+            return res.redirect('/Admin/subjects');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }

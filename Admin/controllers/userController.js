@@ -83,7 +83,7 @@ const userDetailPost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/users/${req.params.id}`, req, req.body);
 
         if (result.issuccess) {
-            return res.redirect('/users');
+            return res.redirect('/Admin/users');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -131,7 +131,7 @@ const userCreatePost = async (req, res) => {
         const result = await makeApiRequest('POST', '/api/users/create', req, user);
         
         if (result.issuccess) {
-            return res.redirect('/users');
+            return res.redirect('/Admin/users');
         } else {
             // Fetch schools again for error state
             const schoolsResult = await makeApiRequest('GET', '/api/schools?requiresInvite=false', req);
@@ -200,7 +200,7 @@ const userUpdatePost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/users/update/${req.params.id}`, req, user);
         
         if (result.issuccess) {
-            return res.redirect('/');
+            return res.redirect('/Admin/');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -241,7 +241,7 @@ const userDeletePost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/users/delete/${req.params.id}`, req);
         
         if (result.issuccess) {
-            return res.redirect('/users');
+            return res.redirect('/Admin/users');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }
@@ -276,7 +276,7 @@ const changePasswordPost = async (req, res) => {
         const result = await makeApiRequest('POST', `/api/users/changepassword/${req.session.user.Id}`, req, req.body);
 
         if (result.issuccess) {
-            res.redirect("/");
+            res.redirect("/Admin/");
         } else {
             console.log("error: ", result.message);
             return res.render("users/changepassword", { 
@@ -351,7 +351,7 @@ const userProfileUpdatePost = async (req, res) => {
         if (result.issuccess) {
             // Update session user data
             req.session.user = result.user;
-            return res.redirect('/users/profile');
+            return res.redirect('/Admin/users/profile');
         } else {
             return res.render('error', { title: 'Error', detail: result.message });
         }

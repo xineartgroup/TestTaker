@@ -11,7 +11,7 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/exams/update/<%= exam.Id %>" method="POST">
+        <form action="/admin/exams/update/<%= exam.Id %>" method="POST">
             <div class="form-group">
                 <label for="Name">Exam Name:</label>
                 <input type="text" id="Name" name="Name" value="<%= exam.Name %>" required>
@@ -35,7 +35,7 @@
             <div class="form-group">
                 <label for="Questions">Questions:</label>
                 <div class="questions-field">
-                    <a href="/questions?examId=<%= exam.Id %>" class="btn-manage-questions">
+                    <a href="/admin/questions?examId=<%= exam.Id %>" class="btn-manage-questions">
                         Manage Questions
                     </a>
                 </div>
@@ -71,7 +71,7 @@
 
             <div class="form-buttons">
                 <button type="submit">Update Exam</button>
-                <a href="/" class="cancel-button">Cancel</a>
+                <a href="/admin/" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>

@@ -11,9 +11,9 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/subjects/create" method="POST">
+        <form action="/admin/subjects/create" method="POST">
             <div class="form-group">
-                <label for="Name">Subject Name:</label>
+                <label for="Name">Name:</label>
                 <input type="text" id="Name" name="Name" placeholder="e.g., Mathematics, Physics, English" required>
             </div>
 
@@ -24,7 +24,7 @@
 
             <div class="form-buttons">
                 <button type="submit">Create Subject</button>
-                <a href="/subjects" class="cancel-button">Cancel</a>
+                <a href="/admin/subjects" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>

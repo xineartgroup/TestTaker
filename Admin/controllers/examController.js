@@ -81,7 +81,7 @@ router.get('/create', requireAuth, async (req, res) => {
 router.post('/create', requireAuth, async (req, res) => {
     try {
         const result = await makeApiRequest('POST', '/api/exams/create', req, req.body);
-        if (result.issuccess) return res.redirect('/');
+        if (result.issuccess) return res.redirect('/Admin/');
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -109,7 +109,7 @@ router.get('/update/:id', requireAuth, async (req, res) => {
 router.post('/update/:id', requireAuth, async (req, res) => {
     try {
         const result = await makeApiRequest('POST', `/api/exams/update/${req.params.id}`, req, req.body);
-        if (result.issuccess) return res.redirect('/');
+        if (result.issuccess) return res.redirect('/Admin/');
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -129,7 +129,7 @@ router.get('/delete/:id', requireAuth, async (req, res) => {
 router.post('/delete/:id', requireAuth, async (req, res) => {
     try {
         const result = await makeApiRequest('POST', `/api/exams/delete/${req.params.id}`, req);
-        if (result.issuccess) return res.redirect('/exams');
+        if (result.issuccess) return res.redirect('/Admin/exams');
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -233,14 +233,14 @@ router.get('/take/:id', requireAuth, async (req, res) => {
 router.get('/take/:id/start', requireAuth, async (req, res) => {
     try {
         if (!req.session.currentExam || req.session.currentExam.examId != req.params.id) {
-            return res.redirect(`/exams/take/${req.params.id}`);
+            return res.redirect(`/Admin/exams/take/${req.params.id}`);
         }
         
         req.session.currentExam.startTime = new Date();
         req.session.currentExam.isActive = true;
         req.session.currentExam.currentIndex = 0;
         
-        return res.redirect(`/exams/take/${req.params.id}/question/0`);
+        return res.redirect(`/Admin/exams/take/${req.params.id}/question/0`);
         
     } catch (error) {
         return res.render('error', { 
@@ -257,16 +257,16 @@ router.get('/take/:id/question/:index', requireAuth, async (req, res) => {
         const questionIndex = parseInt(index);
         
         if (!req.session.currentExam || req.session.currentExam.examId != id) {
-            return res.redirect(`/exams/take/${id}`);
+            return res.redirect(`/Admin/exams/take/${id}`);
         }
         
         const exam = req.session.currentExam;
         if (!exam.isActive) {
-            return res.redirect(`/exams/take/${id}`);
+            return res.redirect(`/Admin/exams/take/${id}`);
         }
         
         if (questionIndex >= exam.questions.length) {
-            return res.redirect(`/exams/take/${id}/complete`);
+            return res.redirect(`/Admin/exams/take/${id}/complete`);
         }
         
         const question = exam.questions[questionIndex];

@@ -75,7 +75,7 @@ router.post('/create', async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('POST', '/api/questions/create', req, req.body);
-        if (result.issuccess) return res.redirect(`/questions?examId=${req.body.ExamId || ''}`);
+        if (result.issuccess) return res.redirect(`/Admin/questions?examId=${req.body.ExamId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -114,7 +114,7 @@ router.post('/update/:id', async (req, res) => {
     try {
         if (!req.session || !req.session.isLoggedIn) return res.redirect('/Admin/login');
         const result = await makeApiRequest('POST', `/api/questions/update/${req.params.id}`, req, req.body);
-        if (result.issuccess) return res.redirect(`/questions?examId=${result.question.ExamId || ''}`);
+        if (result.issuccess) return res.redirect(`/Admin/questions?examId=${result.question.ExamId || ''}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });
@@ -163,7 +163,7 @@ router.post('/delete/:id', async (req, res) => {
         const examId = questionResult.issuccess ? questionResult.question.ExamId : "";
 
         const result = await makeApiRequest('POST', `/api/questions/delete/${req.params.id}`, req);
-        if (result.issuccess) return res.redirect(`/questions?examId=${examId}`);
+        if (result.issuccess) return res.redirect(`/Admin/questions?examId=${examId}`);
         return res.render('error', { title: 'Error', detail: result.message });
     } catch (error) {
         return res.render('error', { title: 'Error', detail: error.message || error });

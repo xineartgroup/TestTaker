@@ -10,7 +10,7 @@
             <div class="error-message"><%= error %></div>
         <% } %>
 
-        <form action="/users/update/<%= user.Id %>" method="POST" enctype="multipart/form-data">
+        <form action="/admin/users/update/<%= user.Id %>" method="POST" enctype="multipart/form-data">
             <div class="image-container">
                 <% if (user.Picture) { %>
                     <img src="/uploads/<%= user.Picture %>" alt="" style="max-width: 64px; height: auto; padding: 5px;">
@@ -67,7 +67,7 @@
 
             <div class="form-buttons">
                 <button type="submit">Update User</button>
-                <a href="/users" class="cancel-button">Cancel</a>
+                <a href="/admin/users" class="cancel-button">Cancel</a>
             </div>
         </form>
     </div>

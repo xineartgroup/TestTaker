@@ -6,7 +6,7 @@
 
     <div class="detail-ui content">
         <h2>Update User</h2>
-        <form action="/users/update/<%= user.Id %>" method="POST" enctype="multipart/form-data" id="userForm">
+        <form action="/admin/users/update/<%= user.Id %>" method="POST" enctype="multipart/form-data" id="userForm">
             
             <% if (user.Picture) { %>
                 <div class="image-container">
@@ -86,7 +86,7 @@
             <div class="form-group">
                 <div class="form-buttons">
                     <button type="submit">Update User</button>
-                    <a href="/users" class="cancel-button">Cancel</a>
+                    <a href="/admin" class="cancel-button">Cancel</a>
                 </div>
             </div>
         </form>
